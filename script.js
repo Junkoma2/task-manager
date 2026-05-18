@@ -81,9 +81,11 @@ function importTasks(file) {
         throw new Error('invalid')
       }
       if (!window.confirm('現在のタスクを置き換えてインポートしますか？')) return
+      // 存在しない parentId を null に補正して孤立タスクを防ぐ
+      const importedIds = new Set(payload.tasks.map(t => t.id))
       tasks = payload.tasks.map(task => ({
         ...task,
-        parentId: task.parentId ?? null,
+        parentId: importedIds.has(task.parentId) ? task.parentId : null,
       }))
       saveTasks()
       render()
@@ -311,10 +313,43 @@ form.addEventListener('submit', event => {
 })
 
 clearCompleted.addEventListener('click', () => {
-  const completedIds = tasks.filter(task => task.completed).map(task => task.id)
+  // 完了済みを削除するが、未完了の子はトップレベルへ持ち上げる
+  const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
+
+  // 未完了の子タスクの parentId を解除（ネストが深い場合も対応）
+  let changed = true
+  while (changed) {
+    changed = false
+    tasks = tasks.map(task => {
+      if (!task.completed && task.parentId !== null && completedIds.has(task.parentId)) {
+        changed = true
+        return { ...task, parentId: null }
+      }
+      return task
+    })
+  }
+
+  // 完了済みタスクを削除（未完了の子はすでにトップレベルへ移動済み）
   completedIds.forEach(removeTaskTree)
   saveTasks()
   render()
+})
+
+
+const menuToggle = document.querySelector('#menu-toggle')
+const menuPopup = document.querySelector('#menu-popup')
+
+menuToggle.addEventListener('click', () => {
+  const isOpen = menuPopup.hidden === false
+  menuPopup.hidden = isOpen
+  menuToggle.setAttribute('aria-expanded', String(!isOpen))
+})
+
+document.addEventListener('click', event => {
+  if (!menuToggle.contains(event.target) && !menuPopup.contains(event.target)) {
+    menuPopup.hidden = true
+    menuToggle.setAttribute('aria-expanded', 'false')
+  }
 })
 
 exportButton.addEventListener('click', exportTasks)
