@@ -161,6 +161,10 @@ function openAddForm(addRow) {
   addRow.append(field)
   field.focus()
 
+  field.addEventListener('keydown', event => {
+    if (event.key === 'Escape') render()
+  })
+
   let done = false
 
   const commit = () => {
@@ -277,6 +281,10 @@ function openEditField(row, task) {
   currentTitle.replaceWith(field)
   editButton.disabled = true
   field.focus()
+
+  field.addEventListener('keydown', event => {
+    if (event.key === 'Escape') render()
+  })
   field.select()
 
   let cancelled = false
@@ -319,10 +327,19 @@ function openChildForm(item, parentTask) {
   add.type = 'submit'
   add.textContent = '追加'
 
-  form.append(field, add)
+  const cancel = document.createElement('button')
+  cancel.type = 'button'
+  cancel.textContent = 'キャンセル'
+  cancel.addEventListener('click', () => render())
+
+  form.append(field, add, cancel)
   const childList = item.querySelector('.task-children')
   item.insertBefore(form, childList)
   field.focus()
+
+  field.addEventListener('keydown', event => {
+    if (event.key === 'Escape') render()
+  })
 
   form.addEventListener('submit', event => {
     event.preventDefault()
