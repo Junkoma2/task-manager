@@ -10,17 +10,20 @@
     <main class="app-shell">
       <header class="app-header">
         <h1>task manager</h1>
-        <div class="app-actions" aria-label="データ操作">
-          <button id="check-update" class="quiet-action" type="button">更新</button>
-          <button id="export-data" class="quiet-action" type="button">エクスポート</button>
-          <button id="import-data" class="quiet-action" type="button">インポート</button>
+        <div class="app-menu" aria-label="データ操作">
+          <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-haspopup="true" aria-label="メニューを開く">&#8943;</button>
+          <div id="menu-popup" class="menu-popup" hidden>
+            <button id="check-update" class="menu-item" type="button">更新を確認</button>
+            <button id="export-data" class="menu-item" type="button">エクスポート</button>
+            <button id="import-data" class="menu-item" type="button">インポート</button>
+          </div>
           <input id="import-file" class="sr-only" type="file" accept="application/json" />
         </div>
       </header>
 
       <form class="task-form" id="task-form">
-        <label class="sr-only" for="task-input">親タスクを追加</label>
-        <input id="task-input" type="text" maxlength="80" placeholder="親タスクを追加" autocomplete="off" />
+        <label class="sr-only" for="task-input">タスクを追加</label>
+        <input id="task-input" type="text" maxlength="80" placeholder="タスクを追加" autocomplete="off" />
         <button type="submit">追加</button>
       </form>
 

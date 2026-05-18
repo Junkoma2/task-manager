@@ -46,21 +46,55 @@ h1 {
   line-height: 1.3;
 }
 
-.app-actions {
+.app-menu {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
 }
 
-.quiet-action {
+.menu-toggle {
   min-height: 36px;
+  min-width: 36px;
   border: 1px solid #d6dae1;
   border-radius: 8px;
   background: #fff;
   color: #334155;
   padding: 0 12px;
   cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.menu-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  border: 1px solid #d6dae1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  z-index: 10;
+  padding: 4px 0;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  padding: 0 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: #f5f6f8;
 }
 
 .task-form {
@@ -246,7 +280,7 @@ h1 {
     flex-direction: column;
   }
 
-  .app-actions {
+  .app-menu {
     width: 100%;
     justify-content: flex-start;
   }
