@@ -55,8 +55,8 @@ h1 {
 }
 
 .menu-toggle {
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 44px;
+  min-width: 44px;
   border: 1px solid #d6dae1;
   border-radius: 8px;
   background: #fff;
@@ -112,7 +112,16 @@ h1 {
   background: #fff;
 }
 
-.task-form button,
+.task-form button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #172033;
+  color: #fff;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
 .task-summary button {
   border: 0;
   border-radius: 8px;
