@@ -195,7 +195,8 @@ h1 {
   background: transparent;
   color: #94a3b8;
   cursor: pointer;
-  padding: 6px;
+  padding: 6px 8px;
+  min-height: 44px;
 }
 
 .quiet-button {
@@ -292,6 +293,7 @@ h1 {
   .task-actions {
     grid-column: 2;
     justify-self: start;
+    gap: 4px;
   }
 
   .child-task-form {
