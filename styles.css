@@ -224,6 +224,7 @@ h1 {
   background: #eef1f5;
   color: #334155;
   padding: 0 14px;
+  min-height: 44px;
   cursor: pointer;
 }
 
