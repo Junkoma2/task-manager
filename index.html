@@ -10,11 +10,17 @@
     <main class="app-shell">
       <header class="app-header">
         <h1>task manager</h1>
+        <div class="app-actions" aria-label="データ操作">
+          <button id="check-update" class="quiet-action" type="button">更新</button>
+          <button id="export-data" class="quiet-action" type="button">エクスポート</button>
+          <button id="import-data" class="quiet-action" type="button">インポート</button>
+          <input id="import-file" class="sr-only" type="file" accept="application/json" />
+        </div>
       </header>
 
       <form class="task-form" id="task-form">
-        <label class="sr-only" for="task-input">タスクを追加</label>
-        <input id="task-input" type="text" maxlength="80" placeholder="タスクを追加" autocomplete="off" />
+        <label class="sr-only" for="task-input">親タスクを追加</label>
+        <input id="task-input" type="text" maxlength="80" placeholder="親タスクを追加" autocomplete="off" />
         <button type="submit">追加</button>
       </form>
 
@@ -28,6 +34,7 @@
       </section>
     </main>
 
+    <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
     <script src="./script.js"></script>
   </body>
 </html>
