@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#3B82F6"/>
+  <!-- リスト行の背景 -->
+  <rect x="128" y="148" width="256" height="44" rx="22" fill="white" opacity="0.25"/>
+  <rect x="128" y="234" width="256" height="44" rx="22" fill="white" opacity="0.25"/>
+  <rect x="128" y="320" width="256" height="44" rx="22" fill="white" opacity="0.25"/>
+  <!-- チェックボックス（完了） -->
+  <rect x="136" y="156" width="28" height="28" rx="8" fill="white"/>
+  <path d="M142 170 L151 180 L168 158" stroke="#3B82F6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- チェックボックス（完了） -->
+  <rect x="136" y="242" width="28" height="28" rx="8" fill="white"/>
+  <path d="M142 256 L151 266 L168 244" stroke="#3B82F6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- チェックボックス（未完了） -->
+  <rect x="136" y="328" width="28" height="28" rx="8" fill="white" opacity="0.5"/>
+  <!-- テキスト行 -->
+  <rect x="178" y="164" width="160" height="12" rx="6" fill="white" opacity="0.7"/>
+  <rect x="178" y="250" width="130" height="12" rx="6" fill="white" opacity="0.7"/>
+  <rect x="178" y="336" width="180" height="12" rx="6" fill="white" opacity="0.4"/>
+</svg>
