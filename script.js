@@ -377,6 +377,7 @@ function removeTaskTree(taskId) {
 clearCompleted.addEventListener('click', () => {
   // 完了済みを削除するが、未完了の子はトップレベルへ持ち上げる
   const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
+  if (!window.confirm(`${completedIds.size}件の完了済みタスクを削除しますか？`)) return
 
   // 未完了の子タスクの parentId を解除（ネストが深い場合も対応）
   let changed = true
