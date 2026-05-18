@@ -357,6 +357,73 @@ importButton.addEventListener('click', () => importFile.click())
 importFile.addEventListener('change', event => importTasks(event.target.files?.[0]))
 checkUpdateButton.addEventListener('click', checkForUpdate)
 
+
+// --- 下スワイプ更新 ---
+const PULL_THRESHOLD = 80
+
+let pullStartY = null
+let pullY = 0
+let isPullReturning = false
+
+const pullIndicator = document.createElement('div')
+pullIndicator.className = 'pull-indicator'
+pullIndicator.setAttribute('aria-live', 'polite')
+pullIndicator.setAttribute('aria-label', '引っ張って更新')
+document.body.prepend(pullIndicator)
+
+function setPullIndicator(text, isComplete) {
+  pullIndicator.textContent = text
+  pullIndicator.classList.toggle('complete', Boolean(isComplete))
+}
+
+function updatePullIndicatorHeight(y) {
+  pullIndicator.style.height = y > 0 ? (y + 'px') : ''
+  pullIndicator.style.opacity = y > 0 ? String(Math.min(y / PULL_THRESHOLD, 1)) : ''
+}
+
+document.addEventListener('touchstart', event => {
+  if (window.scrollY > 0) return
+  pullStartY = event.touches[0].clientY
+}, { passive: true })
+
+document.addEventListener('touchmove', event => {
+  if (pullStartY === null) return
+  const dy = event.touches[0].clientY - pullStartY
+  if (dy <= 0) {
+    pullStartY = null
+    return
+  }
+  const visual = dy * 0.4
+  pullY = visual <= PULL_THRESHOLD
+    ? visual
+    : Math.min(PULL_THRESHOLD + (visual - PULL_THRESHOLD) * 0.3, PULL_THRESHOLD + 50)
+  updatePullIndicatorHeight(pullY)
+  setPullIndicator(pullY >= PULL_THRESHOLD ? '放して更新' : '引っ張って更新', false)
+}, { passive: true })
+
+document.addEventListener('touchend', async () => {
+  if (pullStartY === null) return
+  pullStartY = null
+  if (pullY < PULL_THRESHOLD) {
+    isPullReturning = true
+    updatePullIndicatorHeight(0)
+    setTimeout(() => { isPullReturning = false }, 400)
+    pullY = 0
+    return
+  }
+  pullY = 0
+  setPullIndicator('更新中…', false)
+  updatePullIndicatorHeight(PULL_THRESHOLD)
+
+  await checkForUpdate()
+
+  setPullIndicator('完了', true)
+  setTimeout(() => {
+    updatePullIndicatorHeight(0)
+    setTimeout(() => setPullIndicator('', false), 400)
+  }, 700)
+})
+// --- 下スワイプ更新ここまで ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
   navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload())
