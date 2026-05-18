@@ -159,7 +159,8 @@ function renderTaskList(parentId, container) {
     const addChild = document.createElement('button')
     addChild.className = 'quiet-button'
     addChild.type = 'button'
-    addChild.textContent = '子タスク'
+    addChild.textContent = '子タスクを追加'
+    addChild.setAttribute('aria-label', `${task.title}に子タスクを追加`)
     addChild.addEventListener('click', () => {
       openChildForm(item, task)
     })
