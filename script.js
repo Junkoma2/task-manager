@@ -126,7 +126,7 @@ function render() {
   renderTaskList(null, list)
 
   const remaining = tasks.filter(task => !task.completed).length
-  openCount.textContent = `${remaining}件`
+  openCount.textContent = `残り${remaining}件`
   emptyState.hidden = tasks.length > 0
   clearCompleted.disabled = !tasks.some(task => task.completed)
 }
