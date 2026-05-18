@@ -1,7 +1,5 @@
 const STORAGE_KEY = 'task-manager-items'
 
-const form = document.querySelector('#task-form')
-const input = document.querySelector('#task-input')
 const list = document.querySelector('#task-list')
 const emptyState = document.querySelector('#empty-state')
 const openCount = document.querySelector('#open-count')
@@ -125,10 +123,73 @@ function render() {
 
   renderTaskList(null, list)
 
+  const addRow = document.createElement('li')
+  addRow.className = 'task-add-row'
+  addRow.setAttribute('role', 'button')
+  addRow.setAttribute('tabindex', '0')
+  addRow.setAttribute('aria-label', 'タスクを追加')
+  addRow.textContent = '+ タスクを追加'
+  addRow.addEventListener('click', () => openAddForm(addRow))
+  addRow.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openAddForm(addRow)
+    }
+  })
+  list.append(addRow)
+
   const remaining = tasks.filter(task => !task.completed).length
   openCount.textContent = `残り${remaining}件`
   emptyState.hidden = tasks.length > 0
   clearCompleted.hidden = !tasks.some(task => task.completed)
+}
+
+function openAddForm(addRow) {
+  if (addRow.querySelector('input')) return
+
+  addRow.textContent = ''
+  addRow.removeAttribute('role')
+  addRow.removeAttribute('tabindex')
+
+  const field = document.createElement('input')
+  field.type = 'text'
+  field.maxLength = 80
+  field.placeholder = 'タスクを追加'
+  field.setAttribute('aria-label', 'タスクを追加')
+  field.className = 'task-add-input'
+
+  addRow.append(field)
+  field.focus()
+
+  let done = false
+
+  const commit = () => {
+    if (done) return
+    done = true
+    const title = field.value.trim()
+    if (title) {
+      tasks.push({ id: crypto.randomUUID(), title, completed: false, parentId: null })
+      saveTasks()
+    }
+    render()
+  }
+
+  const cancel = () => {
+    if (done) return
+    done = true
+    render()
+  }
+
+  field.addEventListener('blur', cancel)
+  field.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commit()
+    }
+    if (event.key === 'Escape') {
+      cancel()
+    }
+  })
 }
 
 function renderTaskList(parentId, container) {
@@ -295,23 +356,6 @@ function removeTaskTree(taskId) {
 
   tasks = tasks.filter(task => !descendantIds.has(task.id))
 }
-
-form.addEventListener('submit', event => {
-  event.preventDefault()
-  const title = input.value.trim()
-  if (!title) return
-
-  tasks.unshift({
-    id: crypto.randomUUID(),
-    title,
-    completed: false,
-    parentId: null,
-  })
-  input.value = ''
-  saveTasks()
-  render()
-  input.focus()
-})
 
 clearCompleted.addEventListener('click', () => {
   // 完了済みを削除するが、未完了の子はトップレベルへ持ち上げる
