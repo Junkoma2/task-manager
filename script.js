@@ -27,7 +27,11 @@ function loadTasks() {
 }
 
 function saveTasks() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
+  } catch {
+    showStatus('保存に失敗しました')
+  }
 }
 
 function showStatus(message) {
