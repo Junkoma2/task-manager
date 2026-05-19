@@ -184,7 +184,7 @@ function openAddForm(addRow) {
     render()
   }
 
-  field.addEventListener('blur', cancel)
+  field.addEventListener('blur', commit)
   field.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       event.preventDefault()
