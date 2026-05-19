@@ -243,6 +243,11 @@ function renderTaskList(parentId, container) {
     remove.type = 'button'
     remove.textContent = '削除'
     remove.addEventListener('click', () => {
+      const hasChildren = getChildren(task.id).length > 0
+      const message = hasChildren
+        ? 'このタスクとすべての子タスクを削除しますか？'
+        : 'このタスクを削除しますか？'
+      if (!window.confirm(message)) return
       removeTaskTree(task.id)
       saveTasks()
       render()
