@@ -11,6 +11,8 @@ const importFile = document.querySelector('#import-file')
 const statusMessage = document.querySelector('#status-message')
 
 let tasks = loadTasks()
+let confirmingDeleteId = null
+let confirmingDeleteTimer = null
 
 function loadTasks() {
   try {
@@ -222,6 +224,17 @@ function renderTaskList(parentId, container) {
     title.className = 'task-title'
     title.textContent = task.title
 
+    const directChildren = getChildren(task.id)
+    if (directChildren.length > 0) {
+      const completedCount = directChildren.filter(c => c.completed).length
+      if (completedCount < directChildren.length) {
+        const badge = document.createElement('span')
+        badge.className = 'subtask-badge'
+        badge.textContent = `${completedCount}/${directChildren.length}`
+        title.append(badge)
+      }
+    }
+
     const actions = document.createElement('div')
     actions.className = 'task-actions'
 
@@ -242,27 +255,34 @@ function renderTaskList(parentId, container) {
       openEditField(row, task)
     })
 
+    const isConfirming = confirmingDeleteId === task.id
     const remove = document.createElement('button')
-    remove.className = 'delete-button'
+    remove.className = isConfirming ? 'delete-button confirming' : 'delete-button'
     remove.type = 'button'
-    remove.textContent = '削除'
+    remove.textContent = isConfirming ? '本当に削除' : '削除'
     remove.addEventListener('click', () => {
-      const hasChildren = getChildren(task.id).length > 0
-      const message = hasChildren
-        ? 'このタスクとすべての子タスクを削除しますか？'
-        : 'このタスクを削除しますか？'
-      if (!window.confirm(message)) return
-      removeTaskTree(task.id)
-      saveTasks()
-      render()
+      if (confirmingDeleteId === task.id) {
+        clearTimeout(confirmingDeleteTimer)
+        confirmingDeleteId = null
+        removeTaskTree(task.id)
+        saveTasks()
+        render()
+      } else {
+        confirmingDeleteId = task.id
+        clearTimeout(confirmingDeleteTimer)
+        confirmingDeleteTimer = setTimeout(() => {
+          confirmingDeleteId = null
+          render()
+        }, 3000)
+        render()
+      }
     })
 
     actions.append(addChild, edit, remove)
     row.append(checkbox, title, actions)
     item.append(row)
 
-    const children = getChildren(task.id)
-    if (children.length > 0) {
+    if (directChildren.length > 0) {
       const childList = document.createElement('ul')
       childList.className = 'task-children'
       renderTaskList(task.id, childList)
@@ -384,9 +404,25 @@ function removeTaskTree(taskId) {
 }
 
 clearCompleted.addEventListener('click', () => {
+  if (!clearCompleted.dataset.confirming) {
+    const count = tasks.filter(task => task.completed).length
+    clearCompleted.textContent = `${count}件を削除する`
+    clearCompleted.dataset.confirming = '1'
+    clearCompleted.classList.add('confirming')
+    clearCompleted._timer = setTimeout(() => {
+      delete clearCompleted.dataset.confirming
+      clearCompleted.textContent = '完了済みを削除'
+      clearCompleted.classList.remove('confirming')
+    }, 3000)
+    return
+  }
+
+  clearTimeout(clearCompleted._timer)
+  delete clearCompleted.dataset.confirming
+  clearCompleted.classList.remove('confirming')
+
   // 完了済みを削除するが、未完了の子はトップレベルへ持ち上げる
   const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
-  if (!window.confirm(`${completedIds.size}件の完了済みタスクを削除しますか？`)) return
 
   // 未完了の子タスクの parentId を解除（ネストが深い場合も対応）
   let changed = true

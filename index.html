@@ -30,7 +30,15 @@
           <button id="clear-completed" type="button">完了済みを削除</button>
         </div>
         <ul class="task-list" id="task-list"></ul>
-        <p class="empty-state" id="empty-state">今日やることを追加してください。</p>
+        <div class="empty-state" id="empty-state">
+          <svg class="empty-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="8" y="12" width="32" height="28" rx="4" stroke="currentColor" stroke-width="2"/>
+            <path d="M16 22h16M16 29h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M24 6v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <p class="empty-main">タスクはありません</p>
+          <p class="empty-hint">下の「＋ タスクを追加」から追加できます</p>
+        </div>
       </section>
     </main>
 
