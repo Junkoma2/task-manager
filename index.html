@@ -29,8 +29,18 @@
           <span id="open-count">残り0件</span>
           <button id="clear-completed" type="button">完了済みを削除</button>
         </div>
+        <div class="sort-bar">
+          <label for="sort-select">並び順</label>
+          <select id="sort-select" class="sort-select">
+            <option value="manual">手動</option>
+            <option value="created-desc">追加日（新しい順）</option>
+            <option value="created-asc">追加日（古い順）</option>
+            <option value="due-asc">期限日（近い順）</option>
+            <option value="due-desc">期限日（遠い順）</option>
+          </select>
+        </div>
         <ul class="task-list" id="task-list"></ul>
-        <p class="empty-state" id="empty-state">今日やることを追加してください。</p>
+        <div class="empty-state" id="empty-state">タスクはありません</div>
       </section>
     </main>
 
