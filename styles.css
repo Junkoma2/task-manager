@@ -103,6 +103,33 @@ h1 {
   background: #f5f6f8;
 }
 
+/* ソートバー */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.sort-bar label {
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.sort-select {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d6dae1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .task-section {
   border: 1px solid #e1e4ea;
   border-radius: 8px;
@@ -144,23 +171,48 @@ h1 {
   border-bottom: 0;
 }
 
+/* ドラッグ中のスタイル */
+.task-item.dragging {
+  opacity: 0.4;
+}
+
+.task-item.drag-over {
+  border-top: 2px solid #3b82f6;
+}
+
 .task-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
-  min-height: 58px;
-  padding: 12px 16px;
+  padding: 8px 16px;
 }
 
-.task-item input {
+.task-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
   margin: 0;
+  flex-shrink: 0;
+}
+
+.task-title-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .task-title {
   line-height: 1.5;
+}
+
+.task-due {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.task-due.overdue {
+  color: #dc2626;
 }
 
 .task-item.completed .task-title {
@@ -171,7 +223,7 @@ h1 {
 .task-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   opacity: 0;
   transition: opacity 140ms ease;
 }
@@ -187,6 +239,70 @@ h1 {
   }
 }
 
+/* アイコンボタン共通 */
+.icon-button {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.icon-button:hover {
+  background: #f1f3f6;
+  color: #334155;
+}
+
+.icon-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.icon-button.delete-button:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+/* ドラッグハンドル */
+.drag-handle {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: grab;
+  padding: 0;
+  width: 20px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+/* 後方互換: 旧クラスは削除済みだが念のため */
 .quiet-button,
 .delete-button {
   border: 0;
@@ -209,7 +325,7 @@ h1 {
 .task-edit-input {
   width: 100%;
   min-width: 0;
-  height: 36px;
+  height: 34px;
   padding: 0 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -226,12 +342,12 @@ h1 {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 8px;
-  padding: 0 16px 12px 46px;
+  padding: 0 16px 10px 46px;
 }
 
 .child-task-form input {
   width: 100%;
-  height: 38px;
+  height: 36px;
   padding: 0 12px;
   border: 1px solid #d6dae1;
   border-radius: 8px;
@@ -243,15 +359,15 @@ h1 {
   background: #eef1f5;
   color: #334155;
   padding: 0 14px;
-  min-height: 44px;
+  min-height: 36px;
   cursor: pointer;
 }
 
 .task-add-row {
   display: flex;
   align-items: center;
-  min-height: 52px;
-  padding: 12px 16px;
+  min-height: 44px;
+  padding: 10px 16px;
   color: #94a3b8;
   cursor: pointer;
   user-select: none;
@@ -265,11 +381,37 @@ h1 {
 .task-add-input {
   width: 100%;
   min-width: 0;
-  height: 36px;
+  height: 34px;
   padding: 0 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background: #fff;
+}
+
+/* タスク追加フォーム（期限日付き） */
+.task-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  width: 100%;
+}
+
+.task-add-form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-add-date {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .empty-state {
@@ -311,17 +453,19 @@ h1 {
   }
 
   .task-row {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
   }
 
   .task-actions {
-    grid-column: 2;
-    justify-self: start;
-    gap: 4px;
+    gap: 0;
   }
 
   .child-task-form {
     padding-left: 46px;
+  }
+
+  .task-add-date {
+    font-size: 12px;
   }
 }
 

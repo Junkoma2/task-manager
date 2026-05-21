@@ -1,4 +1,5 @@
-const STORAGE_KEY = 'task-manager-items'
+﻿const STORAGE_KEY = 'task-manager-items'
+const SORT_KEY = 'task-manager-sort'
 
 const list = document.querySelector('#task-list')
 const emptyState = document.querySelector('#empty-state')
@@ -9,14 +10,38 @@ const exportButton = document.querySelector('#export-data')
 const importButton = document.querySelector('#import-data')
 const importFile = document.querySelector('#import-file')
 const statusMessage = document.querySelector('#status-message')
+const sortSelect = document.querySelector('#sort-select')
 
 let tasks = loadTasks()
+let sortMode = localStorage.getItem(SORT_KEY) ?? 'manual'
 
+sortSelect.value = sortMode
+
+// ---- SVG icons ----
+function svgIcon(type) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('aria-hidden', 'true')
+
+  if (type === 'edit') {
+    svg.innerHTML = '<path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H3v-2L11.5 2.5Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/>'
+  } else if (type === 'delete') {
+    svg.innerHTML = '<path d="M3 5h10M6 5V3h4v2M5 5l.667 8h4.666L11 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>'
+  } else if (type === 'add-child') {
+    svg.innerHTML = '<path d="M4 3h5M4 3v10M7 9h5M9 7v4" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>'
+  } else if (type === 'drag') {
+    svg.innerHTML = '<circle cx="5" cy="4" r="1" fill="currentColor"/><circle cx="11" cy="4" r="1" fill="currentColor"/><circle cx="5" cy="8" r="1" fill="currentColor"/><circle cx="11" cy="8" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="11" cy="12" r="1" fill="currentColor"/>'
+  }
+
+  return svg
+}
+
+// ---- data ----
 function loadTasks() {
   try {
     const savedTasks = JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []
     const taskIds = new Set(savedTasks.map(task => task.id))
-
     return savedTasks.map(task => ({
       ...task,
       parentId: taskIds.has(task.parentId) ? task.parentId : null,
@@ -52,7 +77,7 @@ function exportTasks() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `task-manager-${new Date().toISOString().slice(0, 10)}.json`
+  link.download = 'task-manager-' + new Date().toISOString().slice(0, 10) + '.json'
   link.click()
   URL.revokeObjectURL(url)
   showStatus('エクスポートしました')
@@ -83,7 +108,6 @@ function importTasks(file) {
         throw new Error('invalid')
       }
       if (!window.confirm('現在のタスクを置き換えてインポートしますか？')) return
-      // 存在しない parentId を null に補正して孤立タスクを防ぐ
       const importedIds = new Set(payload.tasks.map(t => t.id))
       tasks = payload.tasks.map(task => ({
         ...task,
@@ -122,10 +146,41 @@ async function checkForUpdate() {
   showStatus('最新です')
 }
 
+// ---- sort ----
+function getSortedTopLevel() {
+  const topLevel = tasks.filter(task => task.parentId === null)
+
+  if (sortMode === 'manual') return topLevel
+
+  return [...topLevel].sort((a, b) => {
+    if (sortMode === 'created-desc') {
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0)
+    }
+    if (sortMode === 'created-asc') {
+      return (a.createdAt ?? 0) - (b.createdAt ?? 0)
+    }
+    if (sortMode === 'due-asc') {
+      if (!a.dueDate && !b.dueDate) return 0
+      if (!a.dueDate) return 1
+      if (!b.dueDate) return -1
+      return a.dueDate.localeCompare(b.dueDate)
+    }
+    if (sortMode === 'due-desc') {
+      if (!a.dueDate && !b.dueDate) return 0
+      if (!a.dueDate) return 1
+      if (!b.dueDate) return -1
+      return b.dueDate.localeCompare(a.dueDate)
+    }
+    return 0
+  })
+}
+
+// ---- render ----
 function render() {
   list.innerHTML = ''
 
-  renderTaskList(null, list)
+  const topLevel = getSortedTopLevel()
+  topLevel.forEach(task => renderTaskItem(task, list))
 
   const addRow = document.createElement('li')
   addRow.className = 'task-add-row'
@@ -143,7 +198,7 @@ function render() {
   list.append(addRow)
 
   const remaining = tasks.filter(task => !task.completed).length
-  openCount.textContent = `残り${remaining}件`
+  openCount.textContent = '残り' + remaining + '件'
   emptyState.hidden = tasks.length > 0
   clearCompleted.hidden = !tasks.some(task => task.completed)
 }
@@ -155,6 +210,12 @@ function openAddForm(addRow) {
   addRow.removeAttribute('role')
   addRow.removeAttribute('tabindex')
 
+  const formWrapper = document.createElement('div')
+  formWrapper.className = 'task-add-form'
+
+  const row1 = document.createElement('div')
+  row1.className = 'task-add-form-row'
+
   const field = document.createElement('input')
   field.type = 'text'
   field.maxLength = 80
@@ -162,21 +223,32 @@ function openAddForm(addRow) {
   field.setAttribute('aria-label', 'タスクを追加')
   field.className = 'task-add-input'
 
-  addRow.append(field)
-  field.focus()
+  const dateField = document.createElement('input')
+  dateField.type = 'date'
+  dateField.className = 'task-add-date'
+  dateField.setAttribute('aria-label', '期限日')
 
-  field.addEventListener('keydown', event => {
-    if (event.key === 'Escape') render()
-  })
+  row1.append(field, dateField)
+  formWrapper.append(row1)
+  addRow.append(formWrapper)
+  field.focus()
 
   let done = false
 
-  const commit = () => {
+  const commit = (event) => {
+    if (event && (event.relatedTarget === dateField || event.relatedTarget === field)) return
     if (done) return
     done = true
     const title = field.value.trim()
     if (title) {
-      tasks.push({ id: crypto.randomUUID(), title, completed: false, parentId: null })
+      tasks.push({
+        id: crypto.randomUUID(),
+        title,
+        completed: false,
+        parentId: null,
+        createdAt: Date.now(),
+        dueDate: dateField.value || null,
+      })
       saveTasks()
     }
     render()
@@ -189,97 +261,187 @@ function openAddForm(addRow) {
   }
 
   field.addEventListener('blur', commit)
+  dateField.addEventListener('blur', commit)
+
   field.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      commit()
-    }
-    if (event.key === 'Escape') {
-      cancel()
-    }
+    if (event.key === 'Enter') { event.preventDefault(); commit(null) }
+    if (event.key === 'Escape') cancel()
+  })
+  dateField.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); commit(null) }
+    if (event.key === 'Escape') cancel()
   })
 }
 
-function renderTaskList(parentId, container) {
-  getChildren(parentId).forEach(task => {
-    const item = document.createElement('li')
-    item.className = `task-item${task.completed ? ' completed' : ''}`
+function renderTaskItem(task, container) {
+  const children = getChildren(task.id)
 
-    const row = document.createElement('div')
-    row.className = 'task-row'
+  const item = document.createElement('li')
+  item.className = 'task-item' + (task.completed ? ' completed' : '')
+  item.dataset.taskId = task.id
 
-    const checkbox = document.createElement('input')
-    checkbox.type = 'checkbox'
-    checkbox.checked = task.completed
-    checkbox.setAttribute('aria-label', `${task.title}を完了`)
-    checkbox.addEventListener('change', () => {
-      task.completed = checkbox.checked
-      saveTasks()
-      render()
-    })
+  const row = document.createElement('div')
+  row.className = 'task-row'
 
-    const title = document.createElement('span')
-    title.className = 'task-title'
-    title.textContent = task.title
+  const handle = document.createElement('span')
+  handle.className = 'drag-handle'
+  handle.setAttribute('aria-label', '並び替え')
+  handle.setAttribute('title', '並び替え')
+  handle.append(svgIcon('drag'))
 
-    const actions = document.createElement('div')
-    actions.className = 'task-actions'
+  const checkbox = document.createElement('input')
+  checkbox.type = 'checkbox'
+  checkbox.checked = task.completed
+  checkbox.setAttribute('aria-label', task.title + 'を完了')
+  checkbox.addEventListener('change', () => {
+    task.completed = checkbox.checked
+    saveTasks()
+    render()
+  })
 
-    const addChild = document.createElement('button')
-    addChild.className = 'quiet-button'
-    addChild.type = 'button'
-    addChild.textContent = '子タスクを追加'
-    addChild.setAttribute('aria-label', `${task.title}に子タスクを追加`)
-    addChild.addEventListener('click', () => {
-      openChildForm(item, task)
-    })
+  const titleArea = document.createElement('div')
+  titleArea.className = 'task-title-area'
 
-    const edit = document.createElement('button')
-    edit.className = 'quiet-button'
-    edit.type = 'button'
-    edit.textContent = '編集'
-    edit.addEventListener('click', () => {
-      openEditField(row, task)
-    })
+  const titleSpan = document.createElement('span')
+  titleSpan.className = 'task-title'
+  titleSpan.textContent = task.title
 
-    const remove = document.createElement('button')
-    remove.className = 'delete-button'
-    remove.type = 'button'
-    remove.textContent = '削除'
-    remove.addEventListener('click', () => {
-      const hasChildren = getChildren(task.id).length > 0
-      const message = hasChildren
-        ? 'このタスクとすべての子タスクを削除しますか？'
-        : 'このタスクを削除しますか？'
-      if (!window.confirm(message)) return
-      removeTaskTree(task.id)
-      saveTasks()
-      render()
-    })
-
-    actions.append(addChild, edit, remove)
-    row.append(checkbox, title, actions)
-    item.append(row)
-
-    const children = getChildren(task.id)
-    if (children.length > 0) {
-      const childList = document.createElement('ul')
-      childList.className = 'task-children'
-      renderTaskList(task.id, childList)
-      item.append(childList)
+  if (children.length > 0) {
+    const completedCount = children.filter(c => c.completed).length
+    if (completedCount < children.length) {
+      const badge = document.createElement('span')
+      badge.className = 'subtask-badge'
+      badge.textContent = completedCount + '/' + children.length
+      titleSpan.append(badge)
     }
+  }
 
-    container.append(item)
+  titleArea.append(titleSpan)
+
+  if (task.dueDate) {
+    const dueSpan = document.createElement('span')
+    dueSpan.className = 'task-due'
+    const today = new Date().toISOString().slice(0, 10)
+    if (task.dueDate < today) dueSpan.classList.add('overdue')
+    const parts = task.dueDate.split('-')
+    dueSpan.textContent = parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10)
+    titleArea.append(dueSpan)
+  }
+
+  const actions = document.createElement('div')
+  actions.className = 'task-actions'
+
+  const addChild = document.createElement('button')
+  addChild.className = 'icon-button add-child-button'
+  addChild.type = 'button'
+  addChild.setAttribute('aria-label', task.title + 'に子タスクを追加')
+  addChild.setAttribute('title', '子タスクを追加')
+  addChild.append(svgIcon('add-child'))
+  addChild.addEventListener('click', () => openChildForm(item, task))
+
+  const edit = document.createElement('button')
+  edit.className = 'icon-button edit-button'
+  edit.type = 'button'
+  edit.setAttribute('aria-label', task.title + 'を編集')
+  edit.setAttribute('title', '編集')
+  edit.append(svgIcon('edit'))
+  edit.addEventListener('click', () => openEditField(row, task))
+
+  const remove = document.createElement('button')
+  remove.className = 'icon-button delete-button'
+  remove.type = 'button'
+  remove.setAttribute('aria-label', task.title + 'を削除')
+  remove.setAttribute('title', '削除')
+  remove.append(svgIcon('delete'))
+  remove.addEventListener('click', () => {
+    const hasChildren = getChildren(task.id).length > 0
+    const message = hasChildren
+      ? 'このタスクとすべての子タスクを削除しますか？'
+      : 'このタスクを削除しますか？'
+    if (!window.confirm(message)) return
+    removeTaskTree(task.id)
+    saveTasks()
+    render()
+  })
+
+  actions.append(addChild, edit, remove)
+
+  if (sortMode === 'manual') {
+    row.append(handle, checkbox, titleArea, actions)
+  } else {
+    row.append(checkbox, titleArea, actions)
+  }
+
+  item.append(row)
+
+  if (children.length > 0) {
+    const childList = document.createElement('ul')
+    childList.className = 'task-children'
+    children.forEach(child => renderTaskItem(child, childList))
+    item.append(childList)
+  }
+
+  if (sortMode === 'manual' && task.parentId === null) {
+    item.setAttribute('draggable', 'true')
+    setupDragEvents(item, task)
+  }
+
+  container.append(item)
+}
+
+// ---- DnD ----
+let dragSrcId = null
+
+function setupDragEvents(item, task) {
+  item.addEventListener('dragstart', event => {
+    dragSrcId = task.id
+    item.classList.add('dragging')
+    event.dataTransfer.effectAllowed = 'move'
+  })
+
+  item.addEventListener('dragend', () => {
+    item.classList.remove('dragging')
+    document.querySelectorAll('.task-item.drag-over').forEach(el => el.classList.remove('drag-over'))
+    dragSrcId = null
+  })
+
+  item.addEventListener('dragover', event => {
+    if (!dragSrcId || dragSrcId === task.id) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    document.querySelectorAll('.task-item.drag-over').forEach(el => el.classList.remove('drag-over'))
+    item.classList.add('drag-over')
+  })
+
+  item.addEventListener('dragleave', () => {
+    item.classList.remove('drag-over')
+  })
+
+  item.addEventListener('drop', event => {
+    event.preventDefault()
+    item.classList.remove('drag-over')
+    if (!dragSrcId || dragSrcId === task.id) return
+
+    const srcIndex = tasks.findIndex(t => t.id === dragSrcId)
+    if (srcIndex === -1) return
+    const [moved] = tasks.splice(srcIndex, 1)
+    const newDst = tasks.findIndex(t => t.id === task.id)
+    if (newDst === -1) { tasks.splice(srcIndex, 0, moved); return }
+    tasks.splice(newDst, 0, moved)
+    saveTasks()
+    render()
   })
 }
 
+// ---- edit / child form ----
 function getChildren(parentId) {
   return tasks.filter(task => task.parentId === parentId)
 }
 
 function openEditField(row, task) {
-  const currentTitle = row.querySelector('.task-title')
-  const editButton = row.querySelector('.quiet-button:nth-of-type(2)')
+  const titleArea = row.querySelector('.task-title-area')
+  const editBtn = row.querySelector('.edit-button')
+
   const field = document.createElement('input')
   field.className = 'task-edit-input'
   field.type = 'text'
@@ -287,36 +449,42 @@ function openEditField(row, task) {
   field.value = task.title
   field.setAttribute('aria-label', 'タスク名を編集')
 
-  currentTitle.replaceWith(field)
-  editButton.disabled = true
-  field.focus()
+  const dateField = document.createElement('input')
+  dateField.type = 'date'
+  dateField.className = 'task-add-date'
+  dateField.setAttribute('aria-label', '期限日を編集')
+  dateField.value = task.dueDate ?? ''
 
-  field.addEventListener('keydown', event => {
-    if (event.key === 'Escape') render()
-  })
+  titleArea.replaceWith(field)
+  editBtn.replaceWith(dateField)
+
+  field.focus()
   field.select()
 
   let cancelled = false
 
-  const commit = () => {
+  const commit = (event) => {
+    if (event && (event.relatedTarget === dateField || event.relatedTarget === field)) return
     if (cancelled) return
     const nextTitle = field.value.trim()
     if (nextTitle) {
       task.title = nextTitle
+      task.dueDate = dateField.value || null
       saveTasks()
     }
     render()
   }
 
   field.addEventListener('blur', commit)
+  dateField.addEventListener('blur', commit)
+
   field.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      field.blur()
-    }
-    if (event.key === 'Escape') {
-      cancelled = true
-      render()
-    }
+    if (event.key === 'Enter') field.blur()
+    if (event.key === 'Escape') { cancelled = true; render() }
+  })
+  dateField.addEventListener('keydown', event => {
+    if (event.key === 'Enter') dateField.blur()
+    if (event.key === 'Escape') { cancelled = true; render() }
   })
 }
 
@@ -330,7 +498,7 @@ function openChildForm(item, parentTask) {
   field.type = 'text'
   field.maxLength = 80
   field.placeholder = '子タスクを追加'
-  field.setAttribute('aria-label', `${parentTask.title}の子タスクを追加`)
+  field.setAttribute('aria-label', parentTask.title + 'の子タスクを追加')
 
   const add = document.createElement('button')
   add.type = 'submit'
@@ -343,7 +511,7 @@ function openChildForm(item, parentTask) {
 
   form.append(field, add, cancel)
   const childList = item.querySelector('.task-children')
-  item.insertBefore(form, childList)
+  item.insertBefore(form, childList ?? null)
   field.focus()
 
   field.addEventListener('keydown', event => {
@@ -360,6 +528,8 @@ function openChildForm(item, parentTask) {
       title,
       completed: false,
       parentId: parentTask.id,
+      createdAt: Date.now(),
+      dueDate: null,
     })
     saveTasks()
     render()
@@ -383,12 +553,17 @@ function removeTaskTree(taskId) {
   tasks = tasks.filter(task => !descendantIds.has(task.id))
 }
 
-clearCompleted.addEventListener('click', () => {
-  // 完了済みを削除するが、未完了の子はトップレベルへ持ち上げる
-  const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
-  if (!window.confirm(`${completedIds.size}件の完了済みタスクを削除しますか？`)) return
+// ---- event listeners ----
+sortSelect.addEventListener('change', () => {
+  sortMode = sortSelect.value
+  localStorage.setItem(SORT_KEY, sortMode)
+  render()
+})
 
-  // 未完了の子タスクの parentId を解除（ネストが深い場合も対応）
+clearCompleted.addEventListener('click', () => {
+  const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
+  if (!window.confirm(completedIds.size + '件の完了済みタスクを削除しますか？')) return
+
   let changed = true
   while (changed) {
     changed = false
@@ -401,12 +576,10 @@ clearCompleted.addEventListener('click', () => {
     })
   }
 
-  // 完了済みタスクを削除（未完了の子はすでにトップレベルへ移動済み）
   completedIds.forEach(removeTaskTree)
   saveTasks()
   render()
 })
-
 
 const menuToggle = document.querySelector('#menu-toggle')
 const menuPopup = document.querySelector('#menu-popup')
@@ -430,7 +603,7 @@ importFile.addEventListener('change', event => importTasks(event.target.files?.[
 checkUpdateButton.addEventListener('click', checkForUpdate)
 
 
-// --- 下スワイプ更新 ---
+// ---- pull-to-refresh ----
 const PULL_THRESHOLD = 80
 
 let pullStartY = null
@@ -495,7 +668,7 @@ document.addEventListener('touchend', async () => {
     setTimeout(() => setPullIndicator('', false), 400)
   }, 700)
 })
-// --- 下スワイプ更新ここまで ---
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
   navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload())
