@@ -185,7 +185,7 @@ h1 {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 6px 16px;
 }
 
 .task-item input[type="checkbox"] {
@@ -197,8 +197,9 @@ h1 {
 
 .task-title-area {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
 
