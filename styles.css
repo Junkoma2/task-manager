@@ -527,3 +527,16 @@ h1 {
   font-size: 0.875rem;
   color: #94a3b8;
 }
+
+/* 2ステップ確認: 確認状態のスタイル */
+.is-confirming {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border-radius: 4px;
+}
+
+#clear-completed.is-confirming {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #dc2626;
+}
