@@ -1,5 +1,7 @@
 ﻿const STORAGE_KEY = 'task-manager-items'
 const SORT_KEY = 'task-manager-sort'
+const SETTINGS_KEY = 'task-manager-settings'
+const RECURRING_KEY = 'task-manager-recurring'
 
 const list = document.querySelector('#task-list')
 const emptyState = document.querySelector('#empty-state')
@@ -12,9 +14,16 @@ const importFile = document.querySelector('#import-file')
 const statusMessage = document.querySelector('#status-message')
 const sortSelect = document.querySelector('#sort-select')
 const sortBar = document.querySelector('.sort-bar')
+const settingsOpen = document.querySelector('#settings-open')
+const settingsOverlay = document.querySelector('#settings-overlay')
+const settingsClose = document.querySelector('#settings-close')
+const showCompletedToggle = document.querySelector('#show-completed-toggle')
+const recurringListEl = document.querySelector('#recurring-list')
 
 let tasks = loadTasks()
 let sortMode = localStorage.getItem(SORT_KEY) ?? 'manual'
+let settings = loadSettings()
+let recurringTemplates = loadRecurringTemplates()
 
 sortSelect.value = sortMode
 
@@ -58,6 +67,70 @@ function saveTasks() {
   } catch {
     showStatus('保存に失敗しました')
   }
+}
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) ?? { showCompleted: true }
+  } catch {
+    return { showCompleted: true }
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch { /* noop */ }
+}
+
+function loadRecurringTemplates() {
+  try {
+    return JSON.parse(localStorage.getItem(RECURRING_KEY)) ?? []
+  } catch {
+    return []
+  }
+}
+
+function saveRecurringTemplates() {
+  try {
+    localStorage.setItem(RECURRING_KEY, JSON.stringify(recurringTemplates))
+  } catch { /* noop */ }
+}
+
+// テンプレートから今日分のタスクを自動生成する
+function generateRecurringTasks() {
+  const today = new Date().toISOString().slice(0, 10)
+  recurringTemplates.forEach(tmpl => {
+    const alreadyExists = tasks.some(
+      t => t.generatedFrom === tmpl.id && t.generatedDate === today
+    )
+    if (alreadyExists) return
+    const shouldGenerate = shouldGenerateToday(tmpl, today)
+    if (!shouldGenerate) return
+    tasks.push({
+      id: crypto.randomUUID(),
+      title: tmpl.title,
+      completed: false,
+      parentId: null,
+      createdAt: Date.now(),
+      dueDate: today,
+      generatedFrom: tmpl.id,
+      generatedDate: today,
+    })
+  })
+  saveTasks()
+}
+
+function shouldGenerateToday(tmpl, today) {
+  const date = new Date(today + 'T00:00:00')
+  if (tmpl.recurrence === 'daily') return true
+  if (tmpl.recurrence === 'weekly') {
+    return date.getDay() === (tmpl.weekDay ?? 1) // デフォルト月曜
+  }
+  if (tmpl.recurrence === 'monthly') {
+    return date.getDate() === (tmpl.monthDay ?? 1) // デフォルト1日
+  }
+  return false
 }
 
 function showStatus(message) {
@@ -209,7 +282,8 @@ function render() {
   list.innerHTML = ''
 
   const topLevel = getSortedTopLevel()
-  topLevel.forEach(task => renderTaskItem(task, list))
+  const visibleTopLevel = settings.showCompleted ? topLevel : topLevel.filter(t => !t.completed)
+  visibleTopLevel.forEach(task => renderTaskItem(task, list))
 
   const addRow = document.createElement('li')
   addRow.className = 'task-add-row'
@@ -258,27 +332,65 @@ function openAddForm(addRow) {
   dateField.className = 'task-add-date'
   dateField.setAttribute('aria-label', '期限日')
 
+  const row2 = document.createElement('div')
+  row2.className = 'task-add-recurrence'
+  const recurrenceLabel = document.createElement('label')
+  recurrenceLabel.textContent = '繰り返し：'
+  recurrenceLabel.htmlFor = 'task-add-recurrence-select'
+  const recurrenceSelect = document.createElement('select')
+  recurrenceSelect.id = 'task-add-recurrence-select'
+  recurrenceSelect.innerHTML = '<option value="none">なし</option><option value="daily">毎日</option><option value="weekly">毎週</option><option value="monthly">毎月</option>'
+  row2.append(recurrenceLabel, recurrenceSelect)
   row1.append(field, dateField)
-  formWrapper.append(row1)
+  formWrapper.append(row1, row2)
   addRow.append(formWrapper)
   field.focus()
 
   let done = false
 
   const commit = (event) => {
-    if (event && (event.relatedTarget === dateField || event.relatedTarget === field)) return
+    if (event && (
+      event.relatedTarget === dateField ||
+      event.relatedTarget === field ||
+      event.relatedTarget === recurrenceSelect
+    )) return
     if (done) return
     done = true
     const title = field.value.trim()
     if (title) {
-      tasks.push({
-        id: crypto.randomUUID(),
-        title,
-        completed: false,
-        parentId: null,
-        createdAt: Date.now(),
-        dueDate: dateField.value || null,
-      })
+      const recurrence = recurrenceSelect.value
+      if (recurrence !== 'none') {
+        const tmpl = {
+          id: crypto.randomUUID(),
+          title,
+          recurrence,
+          weekDay: recurrence === 'weekly' ? (new Date().getDay() || 1) : undefined,
+          monthDay: recurrence === 'monthly' ? new Date().getDate() : undefined,
+          createdAt: Date.now(),
+        }
+        recurringTemplates.push(tmpl)
+        saveRecurringTemplates()
+        const today = new Date().toISOString().slice(0, 10)
+        tasks.push({
+          id: crypto.randomUUID(),
+          title,
+          completed: false,
+          parentId: null,
+          createdAt: Date.now(),
+          dueDate: today,
+          generatedFrom: tmpl.id,
+          generatedDate: today,
+        })
+      } else {
+        tasks.push({
+          id: crypto.randomUUID(),
+          title,
+          completed: false,
+          parentId: null,
+          createdAt: Date.now(),
+          dueDate: dateField.value || null,
+        })
+      }
       saveTasks()
     }
     render()
@@ -292,6 +404,10 @@ function openAddForm(addRow) {
 
   field.addEventListener('blur', commit)
   dateField.addEventListener('blur', commit)
+  recurrenceSelect.addEventListener('blur', commit)
+  recurrenceSelect.addEventListener('keydown', event => {
+    if (event.key === 'Escape') cancel()
+  })
 
   field.addEventListener('keydown', event => {
     if (event.key === 'Enter') { event.preventDefault(); commit(null) }
@@ -700,6 +816,82 @@ document.addEventListener('touchend', async () => {
     setTimeout(() => setPullIndicator('', false), 400)
   }, 700)
 })
+
+// ---- settings panel ----
+const RECURRENCE_LABELS = { daily: '毎日', weekly: '毎週', monthly: '毎月' }
+
+function renderRecurringList() {
+  recurringListEl.innerHTML = ''
+  if (recurringTemplates.length === 0) {
+    const empty = document.createElement('li')
+    empty.className = 'recurring-list-empty'
+    empty.textContent = '繰り返しタスクはありません'
+    recurringListEl.append(empty)
+    return
+  }
+  recurringTemplates.forEach(tmpl => {
+    const li = document.createElement('li')
+    li.className = 'recurring-item'
+    const title = document.createElement('span')
+    title.className = 'recurring-item-title'
+    title.textContent = tmpl.title
+    const badge = document.createElement('span')
+    badge.className = 'recurring-item-badge'
+    badge.textContent = RECURRENCE_LABELS[tmpl.recurrence] ?? tmpl.recurrence
+    const del = document.createElement('button')
+    del.className = 'icon-button delete-button'
+    del.type = 'button'
+    del.setAttribute('aria-label', tmpl.title + 'の繰り返しを削除')
+    del.setAttribute('title', '削除')
+    del.append(svgIcon('delete'))
+    del.addEventListener('click', () => {
+      twoStepConfirm(del, '本当に削除', () => {
+        recurringTemplates = recurringTemplates.filter(t => t.id !== tmpl.id)
+        saveRecurringTemplates()
+        renderRecurringList()
+      })
+    })
+    li.append(title, badge, del)
+    recurringListEl.append(li)
+  })
+}
+
+function openSettings() {
+  showCompletedToggle.checked = settings.showCompleted
+  renderRecurringList()
+  settingsOverlay.hidden = false
+  settingsOverlay.focus()
+}
+
+function closeSettings() {
+  settingsOverlay.hidden = true
+}
+
+settingsOpen.addEventListener('click', () => {
+  menuPopup.hidden = true
+  menuToggle.setAttribute('aria-expanded', 'false')
+  openSettings()
+})
+
+settingsClose.addEventListener('click', closeSettings)
+
+settingsOverlay.addEventListener('click', event => {
+  if (event.target === settingsOverlay) closeSettings()
+})
+
+settingsOverlay.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeSettings()
+})
+
+showCompletedToggle.addEventListener('change', () => {
+  settings.showCompleted = showCompletedToggle.checked
+  saveSettings()
+  render()
+})
+
+// 初期化: 設定を反映
+showCompletedToggle.checked = settings.showCompleted
+generateRecurringTasks()
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
