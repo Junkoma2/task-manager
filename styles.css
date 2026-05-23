@@ -171,7 +171,7 @@ h1 {
   border-bottom: 0;
 }
 
-/* ドラッグ中のスタイル */
+/* ドラチE��中のスタイル */
 .task-item.dragging {
   opacity: 0.4;
 }
@@ -186,6 +186,10 @@ h1 {
   align-items: center;
   gap: 12px;
   padding: 6px 16px;
+}
+
+.task-row--sortable {
+  grid-template-columns: auto auto 1fr auto;
 }
 
 .task-item input[type="checkbox"] {
@@ -253,7 +257,7 @@ h1 {
   }
 }
 
-/* アイコンボタン共通 */
+/* アイコンボタン共送E*/
 .icon-button {
   border: 0;
   background: transparent;
@@ -290,7 +294,7 @@ h1 {
   pointer-events: none;
 }
 
-/* ドラッグハンドル */
+/* ドラチE��ハンドル */
 .drag-handle {
   border: 0;
   background: transparent;
@@ -402,7 +406,7 @@ h1 {
   background: #fff;
 }
 
-/* タスク追加フォーム（期限日付き） */
+/* タスク追加フォーム�E�期限日付き�E�E*/
 .task-add-form {
   display: flex;
   flex-direction: column;
@@ -437,6 +441,9 @@ h1 {
   align-items: center;
   gap: 8px;
   text-align: center;
+  pointer-events: none;
+  cursor: default;
+  user-select: none;
 }
 
 .status-message {
@@ -542,7 +549,7 @@ h1 {
   color: #94a3b8;
 }
 
-/* 2ステップ確認: 確認状態のスタイル */
+/* 2スチE��プ確誁E 確認状態�Eスタイル */
 .is-confirming {
   background: #fee2e2 !important;
   color: #dc2626 !important;
