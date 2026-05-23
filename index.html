@@ -16,6 +16,7 @@
         <div class="app-menu" aria-label="データ操作">
           <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-haspopup="true" aria-label="その他の操作">&#9776;</button>
           <div id="menu-popup" class="menu-popup" hidden>
+            <button id="settings-open" class="menu-item" type="button">設定</button>
             <button id="check-update" class="menu-item" type="button">更新を確認</button>
             <button id="export-data" class="menu-item" type="button">エクスポート</button>
             <button id="import-data" class="menu-item" type="button">インポート</button>
@@ -49,6 +50,29 @@
     </main>
 
     <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+
+    <div id="settings-overlay" class="settings-overlay" hidden aria-modal="true" role="dialog" aria-label="設定">
+      <div class="settings-panel">
+        <div class="settings-header">
+          <h2 class="settings-title">設定</h2>
+          <button id="settings-close" class="icon-button" type="button" aria-label="設定を閉じる">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <section class="settings-section">
+          <h3 class="settings-section-title">表示</h3>
+          <label class="settings-toggle-row">
+            <span>完了済みタスクを表示</span>
+            <input type="checkbox" id="show-completed-toggle" />
+          </label>
+        </section>
+        <section class="settings-section">
+          <h3 class="settings-section-title">繰り返しタスク</h3>
+          <p class="settings-desc">繰り返し設定を持つタスクのテンプレートを管理します。タスク追加時に繰り返し設定を指定できます。</p>
+          <ul class="recurring-list" id="recurring-list"></ul>
+        </section>
+      </div>
+    </div>
     <script src="./script.js"></script>
   </body>
 </html>

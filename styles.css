@@ -554,3 +554,152 @@ h1 {
   color: #dc2626;
   border-color: #dc2626;
 }
+
+/* 設定パネル */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+@media (min-width: 480px) {
+  .settings-overlay {
+    align-items: center;
+  }
+}
+
+.settings-panel {
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90svh;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+@media (min-width: 480px) {
+  .settings-panel {
+    border-radius: 12px;
+    max-height: 80svh;
+  }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-section-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+/* 繰り返しタスク一覧 */
+.recurring-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recurring-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f6;
+  font-size: 14px;
+}
+
+.recurring-item:last-child {
+  border-bottom: 0;
+}
+
+.recurring-item-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.recurring-item-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 2px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.recurring-list-empty {
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+/* タスク追加フォームの繰り返し行 */
+.task-add-recurrence {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.task-add-recurrence select {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d6dae1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+}
+
+/* 繰り返しタスクのバッジ（タスク一覧内） */
+.task-recurrence-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 1px 5px;
+  border-radius: 6px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
