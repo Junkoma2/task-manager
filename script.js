@@ -11,6 +11,7 @@ const importButton = document.querySelector('#import-data')
 const importFile = document.querySelector('#import-file')
 const statusMessage = document.querySelector('#status-message')
 const sortSelect = document.querySelector('#sort-select')
+const sortBar = document.querySelector('.sort-bar')
 
 let tasks = loadTasks()
 let sortMode = localStorage.getItem(SORT_KEY) ?? 'manual'
@@ -201,6 +202,7 @@ function render() {
   openCount.textContent = '残り' + remaining + '件'
   emptyState.hidden = tasks.length > 0
   clearCompleted.hidden = !tasks.some(task => task.completed)
+  sortBar.hidden = tasks.length === 0
 }
 
 function openAddForm(addRow) {
