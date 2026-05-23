@@ -93,6 +93,34 @@ function isValidTask(value) {
   )
 }
 
+/**
+ * ボタンを2ステップ確認状態に切り替え、3秒後にリセットする。
+ * @param {HTMLElement} btn - 対象ボタン
+ * @param {string} confirmLabel - 確認状態のラベル
+ * @param {Function} onConfirm - 確認後に実行する関数
+ * @returns {boolean} - すでに確認状態だった場合 true
+ */
+function twoStepConfirm(btn, confirmLabel, onConfirm) {
+  if (btn.dataset.confirming === 'true') {
+    clearTimeout(btn._confirmTimer)
+    delete btn.dataset.confirming
+    btn.classList.remove('is-confirming')
+    btn.setAttribute('aria-label', btn.dataset.originalLabel || '')
+    onConfirm()
+    return true
+  }
+  btn.dataset.originalLabel = btn.getAttribute('aria-label')
+  btn.dataset.confirming = 'true'
+  btn.classList.add('is-confirming')
+  btn.setAttribute('aria-label', confirmLabel)
+  btn._confirmTimer = setTimeout(() => {
+    delete btn.dataset.confirming
+    btn.classList.remove('is-confirming')
+    btn.setAttribute('aria-label', btn.dataset.originalLabel || '')
+  }, 3000)
+  return false
+}
+
 function importTasks(file) {
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
@@ -355,13 +383,14 @@ function renderTaskItem(task, container) {
   remove.append(svgIcon('delete'))
   remove.addEventListener('click', () => {
     const hasChildren = getChildren(task.id).length > 0
-    const message = hasChildren
-      ? 'このタスクとすべての子タスクを削除しますか？'
-      : 'このタスクを削除しますか？'
-    if (!window.confirm(message)) return
-    removeTaskTree(task.id)
-    saveTasks()
-    render()
+    const confirmLabel = hasChildren
+      ? '本当に削除（子タスクも削除）'
+      : '本当に削除'
+    twoStepConfirm(remove, confirmLabel, () => {
+      removeTaskTree(task.id)
+      saveTasks()
+      render()
+    })
   })
 
   actions.append(addChild, edit, remove)
@@ -562,23 +591,23 @@ sortSelect.addEventListener('change', () => {
 
 clearCompleted.addEventListener('click', () => {
   const completedIds = new Set(tasks.filter(task => task.completed).map(task => task.id))
-  if (!window.confirm(completedIds.size + '件の完了済みタスクを削除しますか？')) return
+  twoStepConfirm(clearCompleted, completedIds.size + '件を削除（確認）', () => {
+    let changed = true
+    while (changed) {
+      changed = false
+      tasks = tasks.map(task => {
+        if (!task.completed && task.parentId !== null && completedIds.has(task.parentId)) {
+          changed = true
+          return { ...task, parentId: null }
+        }
+        return task
+      })
+    }
 
-  let changed = true
-  while (changed) {
-    changed = false
-    tasks = tasks.map(task => {
-      if (!task.completed && task.parentId !== null && completedIds.has(task.parentId)) {
-        changed = true
-        return { ...task, parentId: null }
-      }
-      return task
-    })
-  }
-
-  completedIds.forEach(removeTaskTree)
-  saveTasks()
-  render()
+    completedIds.forEach(removeTaskTree)
+    saveTasks()
+    render()
+  })
 })
 
 const menuToggle = document.querySelector('#menu-toggle')
