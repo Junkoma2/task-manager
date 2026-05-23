@@ -188,6 +188,10 @@ h1 {
   padding: 6px 16px;
 }
 
+.task-row--sortable {
+  grid-template-columns: auto auto 1fr auto;
+}
+
 .task-item input[type="checkbox"] {
   width: 18px;
   height: 18px;

@@ -398,6 +398,7 @@ function renderTaskItem(task, container) {
   actions.append(addChild, edit, remove)
 
   if (sortMode === 'manual') {
+    row.classList.add('task-row--sortable')
     row.append(handle, checkbox, titleArea, actions)
   } else {
     row.append(checkbox, titleArea, actions)
