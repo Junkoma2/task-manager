@@ -567,6 +567,10 @@ h1 {
 }
 
 /* 設定パネル */
+.settings-overlay[hidden] {
+  display: none;
+}
+
 .settings-overlay {
   position: fixed;
   inset: 0;
