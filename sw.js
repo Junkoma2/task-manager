@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-manager-v1'
+const CACHE_NAME = 'task-manager-v2'
 const ASSETS = ['./', './index.html', './styles.css', './script.js']
 
 self.addEventListener('install', event => {
