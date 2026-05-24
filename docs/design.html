@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>task-manager 設計ドキュメント</title>
+  <style>
+    :root {
+      font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+      color: #172033;
+      background: #f5f6f8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: #f5f6f8;
+    }
+    .doc-shell {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: #172033;
+    }
+    .doc-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0 0 40px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #3b82f6;
+      color: #172033;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: #1e40af;
+    }
+    p {
+      line-height: 1.8;
+      margin: 8px 0;
+      color: #334155;
+    }
+    ul, ol {
+      padding-left: 1.5em;
+      margin: 8px 0;
+      line-height: 1.8;
+      color: #334155;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.85em;
+      background: #dbeafe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #1e3a8a;
+    }
+    pre {
+      background: #172033;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 12px 0;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #dbeafe;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #172033;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #d6dae1;
+      color: #334155;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #eff6ff; }
+    .section-card {
+      background: #fff;
+      border: 1px solid #d6dae1;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .tag {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .tag.no {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .tag.avoid {
+      background: #fef9c3;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-shell">
+    <h1>task-manager 設計ドキュメント</h1>
+    <p class="doc-subtitle">task-manager の設計思想・アーキテクチャ・データ構造・拡張方針</p>
+
+    <div class="section-card">
+      <h2>設計思想</h2>
+      <p><strong>静かに使い続けられるタスク管理。</strong> 入力しやすさと「戻ってきやすさ」を第一に。過剰演出・自己啓発感・ゲーミフィケーションは禁止。機能追加より続けて使えることを優先する。</p>
+      <h3>判断基準</h3>
+      <ul>
+        <li>速く入力できるか</li>
+        <li>迷わず戻ってこられるか</li>
+        <li>情報が増えても落ち着いて見えるか</li>
+        <li>便利さのために、日々の負担を増やしていないか</li>
+      </ul>
+      <h3>避けるもの</h3>
+      <div class="tag-list">
+        <span class="tag avoid">過剰な演出</span>
+        <span class="tag avoid">必要以上の通知</span>
+        <span class="tag avoid">達成感を煽りすぎる表現</span>
+        <span class="tag avoid">機能のための機能</span>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <h2>アーキテクチャ概要</h2>
+      <p><code>index.html</code> / <code>script.js</code> / <code>styles.css</code> がエントリポイント。フレームワーク・ビルドステップなし。デプロイは <code>docs/</code> フォルダを GitHub Pages のソースとして公開。<code>main</code> への push で即時反映。</p>
+      <pre><code>task-manager/
+├── index.html          # アプリ本体
+├── script.js           # ロジック全体
+├── styles.css          # スタイル
+├── sw.js               # Service Worker
+├── manifest.webmanifest
+└── docs/
+    ├── product-principles.md
+    └── design.html     # このファイル</code></pre>
+    </div>
+
+    <div class="section-card">
+      <h2>データ構造</h2>
+      <h3>localStorage キー</h3>
+      <table>
+        <tr><th>キー</th><th>内容</th></tr>
+        <tr><td><code>task-manager-items</code></td><td>タスクリスト（JSON配列）</td></tr>
+        <tr><td><code>task-manager-sort</code></td><td>ソートモード（文字列）</td></tr>
+        <tr><td><code>task-manager-settings</code></td><td>設定（JSON）</td></tr>
+        <tr><td><code>task-manager-recurring</code></td><td>繰り返しテンプレート（JSON配列）</td></tr>
+      </table>
+
+      <h3>タスクのスキーマ</h3>
+      <pre><code>{
+  "id": "uuid-v4",
+  "title": "資料を作る",
+  "completed": false,
+  "parentId": null,
+  "createdAt": 1700000000000,
+  "dueDate": "2026-05-30",
+  "generatedFrom": null,
+  "generatedDate": null
+}</code></pre>
+      <ul>
+        <li><code>id</code> — <code>crypto.randomUUID()</code> で生成</li>
+        <li><code>parentId</code> — 子タスクの場合は親タスクのID。トップレベルは <code>null</code></li>
+        <li><code>createdAt</code> — Unix タイムスタンプ（ms）</li>
+        <li><code>dueDate</code> — 期限日（<code>YYYY-MM-DD</code>）または <code>null</code></li>
+        <li><code>generatedFrom</code> — 繰り返しテンプレートのID。手動追加は <code>null</code></li>
+        <li><code>generatedDate</code> — 自動生成された日付（<code>YYYY-MM-DD</code>）。重複生成防止に使用</li>
+      </ul>
+
+      <h3>繰り返しテンプレートのスキーマ</h3>
+      <pre><code>{
+  "id": "uuid-v4",
+  "title": "日報を書く",
+  "recurrence": "daily",
+  "weekDay": 1,
+  "monthDay": 1,
+  "createdAt": 1700000000000
+}</code></pre>
+      <ul>
+        <li><code>recurrence</code> — <code>"daily"</code> / <code>"weekly"</code> / <code>"monthly"</code></li>
+        <li><code>weekDay</code> — <code>"weekly"</code> の場合の曜日（0=日〜6=土）</li>
+        <li><code>monthDay</code> — <code>"monthly"</code> の場合の日付（1〜31）</li>
+      </ul>
+
+      <h3>設定のスキーマ</h3>
+      <pre><code>{ "showCompleted": true }</code></pre>
+
+      <h3>エクスポートのフォーマット</h3>
+      <pre><code>{
+  "version": 1,
+  "exportedAt": "2026-01-20T08:00:00.000Z",
+  "tasks": [...]
+}</code></pre>
+      <p>インポート時は <code>isValidTask</code> でバリデーションを行い、孤立した <code>parentId</code>（対応する親タスクが存在しない）は <code>null</code> に正規化する。ファイルサイズ上限は 2MB。</p>
+    </div>
+
+    <div class="section-card">
+      <h2>主要な動作</h2>
+      <h3>タスクの入力フロー</h3>
+      <p>「+ タスクを追加」行をタップするとその場にインライン入力フォームが展開される。フォームはタイトル・期限日・繰り返しを1画面で設定できる。Enter またはフォーカスアウトで保存。Escape でキャンセル。</p>
+      <h3>削除の2ステップ確認</h3>
+      <p>削除ボタンは1回タップで「本当に削除」ラベルに切り替わり、3秒以内に再タップすると実行される。子タスクを持つ場合はラベルに「（子タスクも削除）」が付く。誤操作防止のため <code>window.confirm</code> は使わない。</p>
+      <h3>繰り返しタスクの自動生成</h3>
+      <p>アプリ起動時（<code>generateRecurringTasks</code>）に、当日分がまだ生成されていないテンプレートを確認し、タスクを自動追加する。<code>generatedFrom</code> + <code>generatedDate</code> の組み合わせで重複生成を防ぐ。</p>
+      <h3>完了済みタスクの削除</h3>
+      <p>「完了済みを削除」ボタンは同じく2ステップ確認。削除時、完了済みタスクの子タスクが未完了の場合は孤立しないよう <code>parentId = null</code>（トップレベル昇格）に変換してから削除する。</p>
+    </div>
+
+    <div class="section-card">
+      <h2>今後の拡張方針・やらないこと</h2>
+      <h3>やってよいこと</h3>
+      <div class="tag-list">
+        <span class="tag">期限切れタスクの強調表示改善</span>
+        <span class="tag">繰り返しタスクの管理UIの改善</span>
+      </div>
+      <h3>やらないこと</h3>
+      <div class="tag-list">
+        <span class="tag no">階層を2段以上に深くすること（子タスクは1階層のみ）</span>
+        <span class="tag no">タグ・ラベル・優先度などの属性付与</span>
+        <span class="tag no">クラウド同期・アカウント機能</span>
+        <span class="tag no">カレンダー連携・リマインダー通知</span>
+        <span class="tag no">ガントチャート・かんばんビュー</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
