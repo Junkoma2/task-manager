@@ -678,6 +678,9 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
                 {formatDueDate(task.dueDate)}
               </span>
             )}
+            {task.generatedFrom && (
+              <span className="recurring-badge" aria-label="繰り返しタスク" title="繰り返しで自動生成されたタスク">↻</span>
+            )}
           </div>
         )}
         <div className="task-actions">
