@@ -5,6 +5,8 @@ const RECURRING_KEY = 'task-manager-recurring'
 
 const list = document.querySelector('#task-list')
 const emptyState = document.querySelector('#empty-state')
+const emptyStateText = document.querySelector('#empty-state-text')
+const emptyStateSub = document.querySelector('#empty-state-sub')
 const openCount = document.querySelector('#open-count')
 const clearCompleted = document.querySelector('#clear-completed')
 const checkUpdateButton = document.querySelector('#check-update')
@@ -302,7 +304,20 @@ function render() {
 
   const remaining = tasks.filter(task => !task.completed).length
   openCount.textContent = '残り' + remaining + '件'
-  emptyState.hidden = tasks.length > 0
+  if (tasks.length === 0) {
+    emptyStateText.textContent = 'タスクを追加してみましょう'
+    emptyStateSub.textContent = 'リスト末尾の＋ボタンから追加できます'
+    emptyState.hidden = false
+    emptyState.removeAttribute('aria-hidden')
+  } else if (visibleTopLevel.length === 0) {
+    emptyStateText.textContent = '表示するタスクがありません'
+    emptyStateSub.textContent = '完了済みタスクは設定から表示できます'
+    emptyState.hidden = false
+    emptyState.removeAttribute('aria-hidden')
+  } else {
+    emptyState.hidden = true
+    emptyState.setAttribute('aria-hidden', 'true')
+  }
   clearCompleted.hidden = !tasks.some(task => task.completed)
   sortBar.hidden = tasks.length === 0
 }
