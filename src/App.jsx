@@ -316,6 +316,18 @@ export default function App() {
   const remaining = tasks.filter(t => !t.completed).length
   const hasCompleted = tasks.some(t => t.completed)
   const hasTasks = tasks.length > 0
+  const hasVisibleTopLevel = visibleTopLevel.length > 0
+  const emptyState = !hasTasks
+    ? {
+        text: 'タスクを追加してみましょう',
+        sub: 'リスト末尾の＋ボタンから追加できます',
+      }
+    : !hasVisibleTopLevel && !settings.showCompleted
+      ? {
+          text: '表示中のタスクはありません',
+          sub: '完了済みを表示すると確認できます',
+        }
+      : null
   const RECURRENCE_LABELS = { daily: '毎日', weekly: '毎週', monthly: '毎月' }
 
   return (
@@ -408,15 +420,15 @@ export default function App() {
             ))}
             <AddTaskRow onAdd={addTask} />
           </ul>
-          {!hasTasks && (
-            <div className="empty-state" id="empty-state" aria-hidden="true">
+          {emptyState && (
+            <div className="empty-state" id="empty-state" aria-live="polite">
               <svg className="empty-state-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="2"/>
                 <line x1="9" y1="12" x2="15" y2="12"/>
                 <line x1="12" y1="9" x2="12" y2="15"/>
               </svg>
-              <p className="empty-state-text">タスクを追加してみましょう</p>
-              <p className="empty-state-sub">リスト末尾の＋ボタンから追加できます</p>
+              <p className="empty-state-text">{emptyState.text}</p>
+              <p className="empty-state-sub">{emptyState.sub}</p>
             </div>
           )}
         </section>
