@@ -7,6 +7,7 @@ import {
 } from './storage.js'
 import { generateRecurringTasks } from './recurring.js'
 import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
+import { APP_VERSION } from './version.js'
 
 function formatDueDate(dueDate) {
   const parts = dueDate.split('-')
@@ -826,6 +827,7 @@ function SettingsPanel({ settings, recurringTemplates, confirmingId, requestConf
             })}
           </ul>
         </section>
+        <p className="settings-version">バージョン {APP_VERSION}</p>
       </div>
     </div>
   )
