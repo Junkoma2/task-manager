@@ -107,6 +107,7 @@ export default function App() {
   const [statusMsg, setStatusMsg] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(null) // { message, onConfirm }
   const statusTimerRef = useRef(null)
 
   const { confirmingId, requestConfirm } = useTwoStepConfirm()
@@ -284,10 +285,15 @@ export default function App() {
       try {
         const payload = JSON.parse(e.target.result)
         if (!Array.isArray(payload.tasks) || !payload.tasks.every(isValidTask)) throw new Error('invalid')
-        if (!window.confirm('現在のタスクを置き換えてインポートしますか？')) return
         const importedIds = new Set(payload.tasks.map(t => t.id))
-        setTasks(payload.tasks.map(t => ({ ...t, parentId: importedIds.has(t.parentId) ? t.parentId : null })))
-        showStatus('インポートしました')
+        const importedTasks = payload.tasks.map(t => ({ ...t, parentId: importedIds.has(t.parentId) ? t.parentId : null }))
+        setConfirmModal({
+          message: '現在のタスクを置き換えてインポートしますか？',
+          onConfirm: () => {
+            setTasks(importedTasks)
+            showStatus('インポートしました')
+          },
+        })
       } catch {
         showStatus('JSON を読み込めませんでした')
       }
@@ -437,6 +443,13 @@ export default function App() {
       <p id="status-message" className="status-message" role="status" aria-live="polite">
         {statusMsg}
       </p>
+      {confirmModal && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={() => { confirmModal.onConfirm(); setConfirmModal(null) }}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
       {settingsOpen && (
         <SettingsPanel
           settings={settings}
@@ -573,7 +586,7 @@ function AddTaskRow({ onAdd }) {
   )
 }
 
-function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove }) {
+function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove, showCompleted = true }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDue, setEditDue] = useState(task.dueDate ?? '')
@@ -585,6 +598,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
   const childFieldRef = useRef(null)
 
   const children = tasks.filter(t => t.parentId === task.id)
+  const visibleChildren = showCompleted ? children : children.filter(c => !c.completed)
   const today = getTodayISO()
   const deleteConfirmId = 'delete-' + task.id
 
@@ -621,7 +635,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
     if (srcId && srcId !== task.id) onMove(srcId, task.id)
   }
 
-  const hasChildren = children.length > 0
+  const hasChildren = visibleChildren.length > 0
   const completedChildren = children.filter(c => c.completed).length
   const confirmLabel = hasChildren ? '本当に削除（子タスクも削除）' : '本当に削除'
   const isSortable = sortMode === 'manual' && task.parentId === null
@@ -744,7 +758,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
       )}
       {hasChildren && (
         <ul className="task-children">
-          {children.map(child => (
+          {visibleChildren.map(child => (
             <TaskItem
               key={child.id}
               task={child}
@@ -757,6 +771,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
               onDelete={onDelete}
               onAddChild={onAddChild}
               onMove={onMove}
+              showCompleted={showCompleted}
             />
           ))}
         </ul>
@@ -828,6 +843,31 @@ function SettingsPanel({ settings, recurringTemplates, confirmingId, requestConf
           </ul>
         </section>
         <p className="settings-version">バージョン {APP_VERSION}</p>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmModal({ message, onConfirm, onCancel }) {
+  const overlayRef = useRef(null)
+  useEffect(() => { overlayRef.current?.focus() }, [])
+  return (
+    <div
+      ref={overlayRef}
+      className="settings-overlay"
+      aria-modal="true"
+      role="dialog"
+      aria-label="確認"
+      tabIndex={-1}
+      onClick={e => { if (e.target === overlayRef.current) onCancel() }}
+      onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+    >
+      <div className="settings-panel confirm-modal">
+        <p className="confirm-modal-message">{message}</p>
+        <div className="confirm-modal-actions">
+          <button type="button" className="menu-item" onClick={onConfirm}>はい</button>
+          <button type="button" className="menu-item" onClick={onCancel}>キャンセル</button>
+        </div>
       </div>
     </div>
   )
