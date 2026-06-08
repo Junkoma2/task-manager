@@ -515,8 +515,15 @@ function AddTaskRow({ onAdd }) {
   }
 
   function handleBlur(e) {
-    if (e.relatedTarget && formRef.current?.contains(e.relatedTarget)) return
-    commit()
+    if (e.relatedTarget) {
+      if (formRef.current?.contains(e.relatedTarget)) return
+      commit()
+    } else {
+      // iOS Safari では relatedTarget が null になるため遅延チェック
+      setTimeout(() => {
+        if (!formRef.current?.contains(document.activeElement)) commit()
+      }, 0)
+    }
   }
 
   if (!isOpen) {
@@ -616,8 +623,15 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
   }
 
   function handleEditBlur(e) {
-    if (e.relatedTarget && editRowRef.current?.contains(e.relatedTarget)) return
-    commitEdit()
+    if (e.relatedTarget) {
+      if (editRowRef.current?.contains(e.relatedTarget)) return
+      commitEdit()
+    } else {
+      // iOS Safari では relatedTarget が null になるため遅延チェック
+      setTimeout(() => {
+        if (!editRowRef.current?.contains(document.activeElement)) commitEdit()
+      }, 0)
+    }
   }
 
   function submitChild(e) {
