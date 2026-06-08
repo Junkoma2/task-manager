@@ -39,15 +39,18 @@ function useTwoStepConfirm(timeout = 3000) {
   return { confirmingId, requestConfirm }
 }
 
-function usePullToRefresh(onRefresh) {
+function usePullToRefresh(mainRef, onRefresh) {
   const PULL_THRESHOLD = 80
   const pullStartY = useRef(null)
   const pullStateRef = useRef({ height: 0 })
   const [pullState, setPullState] = useState({ height: 0, label: '', complete: false })
 
   useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
     const onTouchStart = (e) => {
-      if (window.scrollY > 0) return
+      // スクロール要素の最上部でのみpull-to-refreshを起動する
+      if (el.scrollTop > 0 || window.scrollY > 0) return
       pullStartY.current = e.touches[0].clientY
     }
     const onTouchMove = (e) => {
@@ -82,15 +85,15 @@ function usePullToRefresh(onRefresh) {
         setPullState({ height: 0, label: '', complete: false })
       }, 700)
     }
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchmove', onTouchMove, { passive: true })
-    document.addEventListener('touchend', onTouchEnd)
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('touchend', onTouchEnd)
     return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchmove', onTouchMove)
-      document.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [onRefresh])
+  }, [mainRef, onRefresh])
 
   return pullState
 }
@@ -109,6 +112,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null) // { message, onConfirm }
   const statusTimerRef = useRef(null)
+  const mainRef = useRef(null)
 
   const { confirmingId, requestConfirm } = useTwoStepConfirm()
 
@@ -140,7 +144,7 @@ export default function App() {
     showStatus('最新です')
   }, [])
 
-  const pullState = usePullToRefresh(handleRefresh)
+  const pullState = usePullToRefresh(mainRef, handleRefresh)
 
   function getSortedTopLevel() {
     const topLevel = tasks.filter(t => t.parentId === null)
@@ -349,7 +353,7 @@ export default function App() {
           {pullState.label}
         </div>
       )}
-      <main className="app-shell">
+      <main className="app-shell" ref={mainRef}>
         <header className="app-header">
           <h1>task manager</h1>
           <div className="app-menu" aria-label="データ操作">
