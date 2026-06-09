@@ -243,14 +243,31 @@ export default function App() {
 
   function clearCompletedTasks() {
     const completedIds = new Set(tasks.filter(t => t.completed).map(t => t.id))
-    let next = tasks.map(t =>
-      !t.completed && t.parentId !== null && completedIds.has(t.parentId)
-        ? { ...t, parentId: null } : t
+    // reparent対象の未完了子タスクID（完了済み親の直接の子で、自身は未完了）
+    const reparentIds = new Set(
+      tasks
+        .filter(t => !t.completed && t.parentId !== null && completedIds.has(t.parentId))
+        .map(t => t.id)
     )
-    completedIds.forEach(id => {
-      const ids = getDescendantIds(id)
-      next = next.filter(t => !ids.has(t.id))
-    })
+    // 削除対象: 完了済みタスクと、reparentされない子孫（完了済み同士のネスト等）
+    function getDeleteIds(taskId) {
+      const ids = new Set([taskId])
+      let changed = true
+      while (changed) {
+        changed = false
+        tasks.forEach(t => {
+          if (ids.has(t.parentId) && !ids.has(t.id) && !reparentIds.has(t.id)) {
+            ids.add(t.id); changed = true
+          }
+        })
+      }
+      return ids
+    }
+    const deleteIds = new Set()
+    completedIds.forEach(id => getDeleteIds(id).forEach(did => deleteIds.add(did)))
+    const next = tasks
+      .filter(t => !deleteIds.has(t.id))
+      .map(t => reparentIds.has(t.id) ? { ...t, parentId: null } : t)
     setTasks(next)
   }
 
