@@ -576,6 +576,16 @@ h1 {
   border-color: #dc2626;
 }
 
+/* is-confirming のカウントダウン視覚フィードバック（3秒でoutlineが消える） */
+@keyframes confirm-countdown {
+  from { outline: 2px solid #dc2626; outline-offset: 1px; }
+  to   { outline: 2px solid transparent; outline-offset: 1px; }
+}
+
+.is-confirming {
+  animation: confirm-countdown 3s linear forwards;
+}
+
 /* 設定パネル */
 .settings-overlay[hidden] {
   display: none;
