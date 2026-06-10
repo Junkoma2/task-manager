@@ -6,16 +6,13 @@ import {
   loadRecurringTemplates, saveRecurringTemplates,
 } from './storage.js'
 import { generateRecurringTasks } from './recurring.js'
+import { getLocalDateISO } from './date.js'
 import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
 import { APP_VERSION } from './version.js'
 
 function formatDueDate(dueDate) {
   const parts = dueDate.split('-')
   return parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10)
-}
-
-function getTodayISO() {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function useTwoStepConfirm(timeout = 3000) {
@@ -179,7 +176,7 @@ export default function App() {
         createdAt: Date.now(),
       }
       setRecurringTemplates([...recurringTemplates, tmpl])
-      const today = getTodayISO()
+      const today = getLocalDateISO()
       setTasks([...tasks, {
         id: crypto.randomUUID(),
         title,
@@ -287,7 +284,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'task-manager-' + getTodayISO() + '.json'
+    link.download = 'task-manager-' + getLocalDateISO() + '.json'
     link.click()
     URL.revokeObjectURL(url)
     showStatus('エクスポートしました')
@@ -627,7 +624,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
 
   const children = tasks.filter(t => t.parentId === task.id)
   const visibleChildren = showCompleted ? children : children.filter(c => !c.completed)
-  const today = getTodayISO()
+  const today = getLocalDateISO()
   const deleteConfirmId = 'delete-' + task.id
 
   function startEdit() {

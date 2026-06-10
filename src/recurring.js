@@ -1,3 +1,5 @@
+import { getLocalDateISO } from './date.js'
+
 export function shouldGenerateToday(tmpl, today) {
   const date = new Date(today + 'T00:00:00')
   if (tmpl.recurrence === 'daily') return true
@@ -10,8 +12,8 @@ export function shouldGenerateToday(tmpl, today) {
   return false
 }
 
-export function generateRecurringTasks(tasks, recurringTemplates) {
-  const today = new Date().toISOString().slice(0, 10)
+export function generateRecurringTasks(tasks, recurringTemplates, now = new Date()) {
+  const today = getLocalDateISO(now)
   const newTasks = [...tasks]
   let changed = false
 
