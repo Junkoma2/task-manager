@@ -7,7 +7,9 @@ export function shouldGenerateToday(tmpl, today) {
     return date.getDay() === (tmpl.weekDay ?? 1)
   }
   if (tmpl.recurrence === 'monthly') {
-    return date.getDate() === (tmpl.monthDay ?? 1)
+    // monthDayがその月に存在しない場合（例: 31日→2月）は月末日に生成する
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+    return date.getDate() === Math.min(tmpl.monthDay ?? 1, lastDayOfMonth)
   }
   return false
 }
