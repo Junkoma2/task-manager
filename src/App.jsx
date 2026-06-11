@@ -106,6 +106,7 @@ export default function App() {
   const [settings, setSettingsState] = useState(() => loadSettings())
   const [recurringTemplates, setRecurringTemplatesState] = useState(() => loadRecurringTemplates())
   const [statusMsg, setStatusMsg] = useState("")
+  const [statusAction, setStatusAction] = useState(null) // { label, onClick }
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null) // { message, onConfirm }
@@ -114,10 +115,14 @@ export default function App() {
 
   const { confirmingId, requestConfirm } = useTwoStepConfirm()
 
-  function showStatus(msg) {
+  function showStatus(msg, { action, duration = 2600 } = {}) {
     setStatusMsg(msg)
+    setStatusAction(action ?? null)
     clearTimeout(statusTimerRef.current)
-    statusTimerRef.current = setTimeout(() => setStatusMsg(""), 2600)
+    statusTimerRef.current = setTimeout(() => {
+      setStatusMsg("")
+      setStatusAction(null)
+    }, duration)
   }
 
   function setTasks(next) {
@@ -275,10 +280,18 @@ export default function App() {
     }
     const deleteIds = new Set()
     completedIds.forEach(id => getDeleteIds(id).forEach(did => deleteIds.add(did)))
+    const previous = tasks
     const next = tasks
       .filter(t => !deleteIds.has(t.id))
       .map(t => reparentIds.has(t.id) ? { ...t, parentId: null } : t)
     setTasks(next)
+    showStatus(deleteIds.size + '件削除しました', {
+      action: {
+        label: '元に戻す',
+        onClick: () => setTasks(previous),
+      },
+      duration: 6000,
+    })
   }
 
   function moveTask(srcId, dstId) {
@@ -473,6 +486,20 @@ export default function App() {
       </main>
       <p id="status-message" className="status-message" role="status" aria-live="polite">
         {statusMsg}
+        {statusAction && (
+          <button
+            type="button"
+            className="status-action"
+            onClick={() => {
+              clearTimeout(statusTimerRef.current)
+              setStatusMsg("")
+              setStatusAction(null)
+              statusAction.onClick()
+            }}
+          >
+            {statusAction.label}
+          </button>
+        )}
       </p>
       {confirmModal && (
         <ConfirmModal
