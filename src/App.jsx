@@ -4,6 +4,7 @@ import {
   loadSettings, saveSettings,
   loadSortMode, saveSortMode,
   loadRecurringTemplates, saveRecurringTemplates,
+  STORAGE_KEY, SORT_KEY, SETTINGS_KEY, RECURRING_KEY,
 } from './storage.js'
 import { generateRecurringTasks } from './recurring.js'
 import { getLocalDateISO } from './date.js'
@@ -148,6 +149,18 @@ export default function App() {
 
   const pullState = usePullToRefresh(mainRef, handleRefresh)
 
+  // 他タブの書き込みを検知し、localStorageから最新データを読み直して同期する（issue #108）
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === null || e.key === STORAGE_KEY) setTasksState(loadTasks())
+      if (e.key === null || e.key === SORT_KEY) setSortModeState(loadSortMode())
+      if (e.key === null || e.key === SETTINGS_KEY) setSettingsState(loadSettings())
+      if (e.key === null || e.key === RECURRING_KEY) setRecurringTemplatesState(loadRecurringTemplates())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   function getSortedTopLevel() {
     const topLevel = tasks.filter(t => t.parentId === null)
     if (sortMode === 'manual') return topLevel
@@ -176,7 +189,7 @@ export default function App() {
         id: crypto.randomUUID(),
         title,
         recurrence,
-        weekDay: recurrence === 'weekly' ? (new Date().getDay() || 1) : undefined,
+        weekDay: recurrence === 'weekly' ? new Date().getDay() : undefined,
         monthDay: recurrence === 'monthly' ? new Date().getDate() : undefined,
         createdAt: Date.now(),
       }
