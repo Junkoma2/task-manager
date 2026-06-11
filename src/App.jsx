@@ -184,7 +184,7 @@ export default function App() {
         id: crypto.randomUUID(),
         title,
         recurrence,
-        weekDay: recurrence === 'weekly' ? (new Date().getDay() || 1) : undefined,
+        weekDay: recurrence === 'weekly' ? new Date().getDay() : undefined,
         monthDay: recurrence === 'monthly' ? new Date().getDate() : undefined,
         createdAt: Date.now(),
       }
