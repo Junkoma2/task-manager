@@ -756,7 +756,6 @@ const PULL_THRESHOLD = 80
 
 let pullStartY = null
 let pullY = 0
-let isPullReturning = false
 
 const pullIndicator = document.createElement('div')
 pullIndicator.className = 'pull-indicator'
@@ -798,9 +797,7 @@ document.addEventListener('touchend', async () => {
   if (pullStartY === null) return
   pullStartY = null
   if (pullY < PULL_THRESHOLD) {
-    isPullReturning = true
     updatePullIndicatorHeight(0)
-    setTimeout(() => { isPullReturning = false }, 400)
     pullY = 0
     return
   }

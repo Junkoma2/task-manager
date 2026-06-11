@@ -9,7 +9,7 @@ export default [
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: { window: true, document: true, localStorage: true, navigator: true, console: true, setTimeout: true, clearTimeout: true, fetch: true },
+      globals: { window: true, document: true, localStorage: true, navigator: true, console: true, setTimeout: true, clearTimeout: true, fetch: true, crypto: true, Blob: true, URL: true, FileReader: true },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
     plugins: {
@@ -25,5 +25,11 @@ export default [
       'react/prop-types': 'off',
     },
     settings: { react: { version: 'detect' } },
+  },
+  {
+    files: ['sw.js', 'public/sw.js'],
+    languageOptions: {
+      globals: { self: true, caches: true, fetch: true, console: true },
+    },
   },
 ]
