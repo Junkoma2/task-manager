@@ -8,6 +8,7 @@ import {
 } from './storage.js'
 import { generateRecurringTasks } from './recurring.js'
 import { getLocalDateISO } from './date.js'
+import { clearCompletedTaskTrees, getCompletedTaskTreeIds } from './task-tree.js'
 import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
 import { APP_VERSION } from './version.js'
 
@@ -252,33 +253,7 @@ export default function App() {
   }
 
   function clearCompletedTasks() {
-    const completedIds = new Set(tasks.filter(t => t.completed).map(t => t.id))
-    // reparent対象の未完了子タスクID（完了済み親の直接の子で、自身は未完了）
-    const reparentIds = new Set(
-      tasks
-        .filter(t => !t.completed && t.parentId !== null && completedIds.has(t.parentId))
-        .map(t => t.id)
-    )
-    // 削除対象: 完了済みタスクと、reparentされない子孫（完了済み同士のネスト等）
-    function getDeleteIds(taskId) {
-      const ids = new Set([taskId])
-      let changed = true
-      while (changed) {
-        changed = false
-        tasks.forEach(t => {
-          if (ids.has(t.parentId) && !ids.has(t.id) && !reparentIds.has(t.id)) {
-            ids.add(t.id); changed = true
-          }
-        })
-      }
-      return ids
-    }
-    const deleteIds = new Set()
-    completedIds.forEach(id => getDeleteIds(id).forEach(did => deleteIds.add(did)))
-    const next = tasks
-      .filter(t => !deleteIds.has(t.id))
-      .map(t => reparentIds.has(t.id) ? { ...t, parentId: null } : t)
-    setTasks(next)
+    setTasks(clearCompletedTaskTrees(tasks))
   }
 
   function moveTask(srcId, dstId) {
@@ -353,6 +328,7 @@ export default function App() {
   const visibleTopLevel = settings.showCompleted ? sortedTopLevel : sortedTopLevel.filter(t => !t.completed)
   const remaining = tasks.filter(t => !t.completed).length
   const hasCompleted = tasks.some(t => t.completed)
+  const completedDeleteCount = getCompletedTaskTreeIds(tasks).size
   const hasTasks = tasks.length > 0
   const hasVisibleTopLevel = visibleTopLevel.length > 0
   const emptyState = !hasTasks
@@ -418,7 +394,7 @@ export default function App() {
                 onClick={() => requestConfirm('clear', clearCompletedTasks)}
               >
                 {confirmingId === 'clear'
-                  ? tasks.filter(t => t.completed).length + '件を削除（確認）'
+                  ? completedDeleteCount + '件を削除（確認）'
                   : '完了済みを削除'}
               </button>
             )}
