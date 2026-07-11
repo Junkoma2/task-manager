@@ -1,0 +1,4 @@
+# npm run build (vite) の生成物。OSの改行コード設定に左右されず、
+# レビュー時に意味のない差分が出ないよう固定する。
+/docs/assets/** -text linguist-generated=true
+/docs/index.html -text linguist-generated=true
