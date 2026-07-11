@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:check": "vite build --outDir ../WK/task-manager-preview --emptyOutDir --base /",
     "preview": "vite preview",
+    "preview:check": "vite preview --outDir ../WK/task-manager-preview --base /",
     "lint": "eslint .",
     "test": "node --test src/*.test.js"
   },
