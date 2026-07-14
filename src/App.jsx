@@ -467,6 +467,7 @@ export default function App() {
                 onDelete={deleteTask}
                 onAddChild={addChildTask}
                 onMove={moveTask}
+                showCompleted={settings.showCompleted}
               />
             ))}
             <AddTaskRow onAdd={addTask} />
