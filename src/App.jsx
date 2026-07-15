@@ -185,25 +185,28 @@ export default function App() {
 
   function addTask({ title, dueDate, recurrence }) {
     if (recurrence && recurrence !== 'none') {
+      // 期限日が選ばれていればその日、未選択なら当日を繰り返しの起点日として扱う
+      const startDate = dueDate || getLocalDateISO()
+      const startDateObj = new Date(startDate + 'T00:00:00')
       const tmpl = {
         id: crypto.randomUUID(),
         title,
         recurrence,
-        weekDay: recurrence === 'weekly' ? new Date().getDay() : undefined,
-        monthDay: recurrence === 'monthly' ? new Date().getDate() : undefined,
+        weekDay: recurrence === 'weekly' ? startDateObj.getDay() : undefined,
+        monthDay: recurrence === 'monthly' ? startDateObj.getDate() : undefined,
         createdAt: Date.now(),
+        startDate,
       }
       setRecurringTemplates([...recurringTemplates, tmpl])
-      const today = getLocalDateISO()
       setTasks([...tasks, {
         id: crypto.randomUUID(),
         title,
         completed: false,
         parentId: null,
         createdAt: Date.now(),
-        dueDate: today,
+        dueDate: startDate,
         generatedFrom: tmpl.id,
-        generatedDate: today,
+        generatedDate: startDate,
       }])
     } else {
       setTasks([...tasks, {
