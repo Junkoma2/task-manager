@@ -207,12 +207,14 @@
   "recurrence": "daily",
   "weekDay": 1,
   "monthDay": 1,
-  "createdAt": 1700000000000
+  "createdAt": 1700000000000,
+  "startDate": "2026-05-30"
 }</code></pre>
       <ul>
         <li><code>recurrence</code> — <code>"daily"</code> / <code>"weekly"</code> / <code>"monthly"</code></li>
-        <li><code>weekDay</code> — <code>"weekly"</code> の場合の曜日（0=日〜6=土）</li>
-        <li><code>monthDay</code> — <code>"monthly"</code> の場合の日付（1〜31）</li>
+        <li><code>weekDay</code> — <code>"weekly"</code> の場合の曜日（0=日〜6=土）。<code>startDate</code>の曜日から決まる</li>
+        <li><code>monthDay</code> — <code>"monthly"</code> の場合の日付（1〜31）。<code>startDate</code>の日付から決まる</li>
+        <li><code>startDate</code> — 繰り返しの起点日（<code>YYYY-MM-DD</code>）。追加フォームで期限日を選んでいればその日、未選択なら追加した当日。これより前は自動生成しない。<code>startDate</code>を持たない過去データは読み込み時に<code>createdAt</code>から補う</li>
       </ul>
 
       <h3>設定のスキーマ</h3>
@@ -234,7 +236,7 @@
       <h3>削除の2ステップ確認</h3>
       <p>削除ボタンは1回タップで「本当に削除」ラベルに切り替わり、3秒以内に再タップすると実行される。子タスクを持つ場合はラベルに「（子タスクも削除）」が付く。誤操作防止のため <code>window.confirm</code> は使わない。</p>
       <h3>繰り返しタスクの自動生成</h3>
-      <p>アプリ起動時（<code>generateRecurringTasks</code>）に、当日分がまだ生成されていないテンプレートを確認し、タスクを自動追加する。<code>generatedFrom</code> + <code>generatedDate</code> の組み合わせで重複生成を防ぐ。</p>
+      <p>アプリ起動時（<code>generateRecurringTasks</code>）に、当日分がまだ生成されていないテンプレートを確認し、タスクを自動追加する。<code>generatedFrom</code> + <code>generatedDate</code> の組み合わせで重複生成を防ぐ。テンプレートの<code>startDate</code>より前の日付では生成しない。初回タスクは追加時点で<code>startDate</code>を期限日として直接作成される。</p>
       <h3>完了済みタスクの削除</h3>
       <p>「完了済みを削除」ボタンは同じく2ステップ確認。削除時、完了済みタスクの子タスクが未完了の場合は孤立しないよう <code>parentId = null</code>（トップレベル昇格）に変換してから削除する。</p>
     </div>

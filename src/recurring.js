@@ -1,6 +1,8 @@
 import { getLocalDateISO } from './date.js'
 
 export function shouldGenerateToday(tmpl, today) {
+  // startDateより前は自動生成しない（利用者が選んだ起点日を尊重する）
+  if (tmpl.startDate && today < tmpl.startDate) return false
   const date = new Date(today + 'T00:00:00')
   if (tmpl.recurrence === 'daily') return true
   if (tmpl.recurrence === 'weekly') {
