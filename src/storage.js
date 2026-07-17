@@ -1,3 +1,5 @@
+import { getLocalDateISO } from './date.js'
+
 // localStorage キーは既存のまま維持（データ互換性のため）
 export const STORAGE_KEY = 'task-manager-items'
 export const SORT_KEY = 'task-manager-sort'
@@ -79,9 +81,21 @@ export function saveSortMode(mode) {
   localStorage.setItem(SORT_KEY, mode)
 }
 
+/**
+ * startDateを持たない過去データ向けのマイグレーション
+ * - startDateが無ければ作成日（createdAt）から補う
+ */
+function migrateRecurringTemplates(rawTemplates) {
+  if (!Array.isArray(rawTemplates)) return []
+  return rawTemplates.map(t => ({
+    ...t,
+    startDate: t.startDate ?? getLocalDateISO(new Date(t.createdAt ?? Date.now())),
+  }))
+}
+
 export function loadRecurringTemplates() {
   try {
-    return JSON.parse(localStorage.getItem(RECURRING_KEY)) ?? []
+    return migrateRecurringTemplates(JSON.parse(localStorage.getItem(RECURRING_KEY)) ?? [])
   } catch {
     return []
   }
