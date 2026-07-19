@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import {
   loadTasks, saveTasks,
   loadSettings, saveSettings,
@@ -109,9 +109,11 @@ export default function App() {
   const [statusAction, setStatusAction] = useState(null) // { label, onClick }
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null) // { message, onConfirm }
   const statusTimerRef = useRef(null)
   const mainRef = useRef(null)
+  const addTaskRowRef = useRef(null)
 
   const { confirmingId, requestConfirm } = useTwoStepConfirm()
 
@@ -415,6 +417,7 @@ export default function App() {
               <MenuPopup
                 onClose={() => setMenuOpen(false)}
                 onSettingsOpen={() => { setMenuOpen(false); setSettingsOpen(true) }}
+                onHelpOpen={() => { setMenuOpen(false); setHelpOpen(true) }}
                 onCheckUpdate={() => { setMenuOpen(false); checkForUpdate() }}
                 onExport={() => { setMenuOpen(false); exportTasks() }}
                 onImport={importTasksFromFile}
@@ -473,7 +476,7 @@ export default function App() {
                 showCompleted={settings.showCompleted}
               />
             ))}
-            <AddTaskRow onAdd={addTask} />
+            <AddTaskRow ref={addTaskRowRef} onAdd={addTask} />
           </ul>
           {emptyState && (
             <div className="empty-state" id="empty-state" aria-live="polite">
@@ -484,6 +487,24 @@ export default function App() {
               </svg>
               <p className="empty-state-text">{emptyState.text}</p>
               <p className="empty-state-sub">{emptyState.sub}</p>
+              {!hasTasks && (
+                <div className="empty-state-actions">
+                  <button
+                    type="button"
+                    className="empty-state-add-btn"
+                    onClick={() => addTaskRowRef.current?.open()}
+                  >
+                    + タスクを追加
+                  </button>
+                  <button
+                    type="button"
+                    className="empty-state-help-btn"
+                    onClick={() => setHelpOpen(true)}
+                  >
+                    使い方を見る
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -524,11 +545,12 @@ export default function App() {
           RECURRENCE_LABELS={RECURRENCE_LABELS}
         />
       )}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </>
   )
 }
 
-function MenuPopup({ onClose, onSettingsOpen, onCheckUpdate, onExport, onImport, onCloseMenu }) {
+function MenuPopup({ onClose, onSettingsOpen, onHelpOpen, onCheckUpdate, onExport, onImport, onCloseMenu }) {
   const importRef = useRef(null)
 
   useEffect(() => {
@@ -539,6 +561,7 @@ function MenuPopup({ onClose, onSettingsOpen, onCheckUpdate, onExport, onImport,
 
   return (
     <div id="menu-popup" className="menu-popup">
+      <button className="menu-item" type="button" onClick={onHelpOpen}>使い方</button>
       <button className="menu-item" type="button" onClick={onSettingsOpen}>設定</button>
       <button className="menu-item" type="button" onClick={onCheckUpdate}>更新を確認</button>
       <button className="menu-item" type="button" onClick={onExport}>エクスポート</button>
@@ -554,7 +577,7 @@ function MenuPopup({ onClose, onSettingsOpen, onCheckUpdate, onExport, onImport,
   )
 }
 
-function AddTaskRow({ onAdd }) {
+const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -566,6 +589,8 @@ function AddTaskRow({ onAdd }) {
     setIsOpen(true)
     setTimeout(() => fieldRef.current?.focus(), 0)
   }
+
+  useImperativeHandle(ref, () => ({ open }))
 
   function commit() {
     if (title.trim()) onAdd({ title: title.trim(), dueDate, recurrence })
@@ -653,7 +678,7 @@ function AddTaskRow({ onAdd }) {
       </div>
     </li>
   )
-}
+})
 
 function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove, showCompleted = true }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -943,6 +968,60 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
         <div className="confirm-modal-actions">
           <button type="button" className="menu-item" onClick={onConfirm}>はい</button>
           <button type="button" className="menu-item" onClick={onCancel}>キャンセル</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const HELP_SECTIONS = [
+  {
+    title: 'タスクを追加する',
+    body: 'リスト末尾の「＋ タスクを追加」から入力できます。期限日や繰り返しも同じ場所で設定できます。',
+  },
+  {
+    title: '子タスクに分解する',
+    body: 'タスクの操作ボタンから子タスクを追加すると、作業を小さいステップに分けて進められます。子タスクは親タスクの下にまとまって表示されます。',
+  },
+  {
+    title: '繰り返しタスク',
+    body: '毎日・毎週・毎月など、繰り返し設定を付けたタスクは完了後に自動で次の分が生成されます。設定内のテンプレート一覧から管理できます。',
+  },
+  {
+    title: '並び順と完了済みの整理',
+    body: '並び順は手動・追加日・期限日から選べます。完了したタスクは「完了済みを削除」でまとめて片付けられます。',
+  },
+]
+
+function HelpModal({ onClose }) {
+  const overlayRef = useRef(null)
+  useEffect(() => { overlayRef.current?.focus() }, [])
+
+  return (
+    <div
+      ref={overlayRef}
+      className="settings-overlay"
+      aria-modal="true"
+      role="dialog"
+      aria-label="使い方"
+      tabIndex={-1}
+      onClick={e => { if (e.target === overlayRef.current) onClose() }}
+      onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+    >
+      <div className="settings-panel">
+        <div className="settings-header">
+          <h2 className="settings-title">使い方</h2>
+          <button className="icon-button" type="button" aria-label="使い方を閉じる" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="help-content">
+          {HELP_SECTIONS.map(section => (
+            <section className="help-section" key={section.title}>
+              <h3 className="help-section-title">{section.title}</h3>
+              <p className="help-section-body">{section.body}</p>
+            </section>
+          ))}
         </div>
       </div>
     </div>
