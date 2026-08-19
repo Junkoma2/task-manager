@@ -690,6 +690,9 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
   const editFieldRef = useRef(null)
   const editRowRef = useRef(null)
   const childFieldRef = useRef(null)
+  const childFormRef = useRef(null)
+  const childToggleRef = useRef(null)
+  const childComposingRef = useRef(false)
 
   const children = tasks.filter(t => t.parentId === task.id)
   const visibleChildren = showCompleted ? children : children.filter(c => !c.completed)
@@ -721,12 +724,35 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
     }
   }
 
-  function submitChild(e) {
-    e.preventDefault()
-    if (!childTitle.trim()) return
-    onAddChild(task.id, childTitle.trim())
+  function commitChild() {
+    const trimmed = childTitle.trim()
+    if (trimmed) onAddChild(task.id, trimmed)
     setChildTitle('')
     setShowChildForm(false)
+  }
+
+  function cancelChild() {
+    setChildTitle('')
+    setShowChildForm(false)
+  }
+
+  // 子タスク追加アイコンの再クリック時、blurの自動確定とアイコン側のトグル処理が
+  // 二重に発火して重複登録・意図しない再オープンを起こさないよう、フォームと
+  // トグルアイコンの両方をまとめて「フォーム内」とみなす
+  function isInsideChildArea(el) {
+    return !!el && (childFormRef.current?.contains(el) || childToggleRef.current?.contains(el))
+  }
+
+  function handleChildBlur(e) {
+    if (e.relatedTarget) {
+      if (isInsideChildArea(e.relatedTarget)) return
+      commitChild()
+    } else {
+      // iOS Safari では relatedTarget が null になるため遅延チェック
+      setTimeout(() => {
+        if (!isInsideChildArea(document.activeElement)) commitChild()
+      }, 0)
+    }
   }
 
   function handleDrop(e) {
@@ -813,11 +839,19 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
         )}
         <div className="task-actions">
           <button
+            ref={childToggleRef}
             className="icon-button add-child-button"
             type="button"
             aria-label={task.title + 'に子タスクを追加'}
             title="子タスクを追加"
-            onClick={() => { setShowChildForm(v => !v); setTimeout(() => childFieldRef.current?.focus(), 0) }}
+            onClick={() => {
+              if (showChildForm) {
+                commitChild()
+              } else {
+                setShowChildForm(true)
+                setTimeout(() => childFieldRef.current?.focus(), 0)
+              }
+            }}
           >
             <AddChildIcon />
           </button>
@@ -842,7 +876,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
         </div>
       </div>
       {showChildForm && (
-        <form className="child-task-form" onSubmit={submitChild}>
+        <div className="child-task-form" ref={childFormRef}>
           <input
             ref={childFieldRef}
             type="text"
@@ -851,11 +885,21 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
             aria-label={task.title + 'の子タスクを追加'}
             value={childTitle}
             onChange={e => setChildTitle(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Escape') setShowChildForm(false) }}
+            onBlur={handleChildBlur}
+            onCompositionStart={() => { childComposingRef.current = true }}
+            onCompositionEnd={() => { childComposingRef.current = false }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { cancelChild(); return }
+              if (e.key === 'Enter') {
+                // IME変換確定のEnterで誤登録しないよう、変換中は無視する
+                if (childComposingRef.current || e.nativeEvent.isComposing || e.keyCode === 229) return
+                e.preventDefault()
+                commitChild()
+              }
+            }}
           />
-          <button type="submit">追加</button>
-          <button type="button" onClick={() => setShowChildForm(false)}>キャンセル</button>
-        </form>
+          <button type="button" onClick={cancelChild}>キャンセル</button>
+        </div>
       )}
       {hasChildren && (
         <ul className="task-children">

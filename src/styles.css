@@ -368,7 +368,7 @@ h1 {
 
 .child-task-form {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 8px;
   padding: 0 16px 10px 46px;
 }
