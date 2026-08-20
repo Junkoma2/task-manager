@@ -1,4 +1,5 @@
 import { getLocalDateISO } from './date.js'
+import { COMPLETED_FILTER_OPTIONS, DEFAULT_COMPLETED_FILTER, DEFAULT_WEEK_START_DAY } from './completionFilter.js'
 
 // localStorage キーは既存のまま維持（データ互換性のため）
 export const STORAGE_KEY = 'task-manager-items'
@@ -7,12 +8,15 @@ export const SETTINGS_KEY = 'task-manager-settings'
 export const RECURRING_KEY = 'task-manager-recurring'
 
 // schema version は既存データにはない。v1扱いとする
-const CURRENT_SCHEMA_VERSION = 2
+const CURRENT_SCHEMA_VERSION = 3
 
 /**
- * 旧形式（version なし / v1）から v2 へのマイグレーション
+ * 旧形式（version なし / v1 / v2）から v3 へのマイグレーション
  * - version フィールドを追加
  * - parentId が不正なタスクを null に補正
+ * - completedAt（完了日時、未完了時は null）を補う。既存データに完了日時は無いため
+ *   常に null とし、いつ完了したか不明なタスクとして扱う（today/week 表示フィルターでは
+ *   非表示になるが、タスクデータ自体は失われない）
  */
 function migrateTasks(rawTasks) {
   if (!Array.isArray(rawTasks)) return []
@@ -23,6 +27,7 @@ function migrateTasks(rawTasks) {
       id: t.id,
       title: t.title,
       completed: Boolean(t.completed),
+      completedAt: typeof t.completedAt === 'number' ? t.completedAt : null,
       parentId: ids.has(t.parentId) ? t.parentId : null,
       createdAt: t.createdAt ?? Date.now(),
       dueDate: t.dueDate ?? null,
@@ -59,11 +64,42 @@ export function saveTasks(tasks) {
   }
 }
 
+const DEFAULT_SETTINGS = { completedFilter: DEFAULT_COMPLETED_FILTER, weekStartDay: DEFAULT_WEEK_START_DAY }
+
+/**
+ * 完了済み表示設定のマイグレーション
+ * - 新形式（completedFilter / weekStartDay）はそのまま使う（不正値は既定値で補正）
+ * - 旧形式（showCompleted: boolean のみ）は、表示していた場合は既定の「今週」、
+ *   非表示にしていた場合は「すべて非表示」へ対応させる
+ * - どちらの形式でもない場合は既定値
+ */
+function migrateSettings(raw) {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SETTINGS }
+
+  if (typeof raw.completedFilter === 'string') {
+    return {
+      completedFilter: COMPLETED_FILTER_OPTIONS.includes(raw.completedFilter) ? raw.completedFilter : DEFAULT_COMPLETED_FILTER,
+      weekStartDay: Number.isInteger(raw.weekStartDay) && raw.weekStartDay >= 0 && raw.weekStartDay <= 6
+        ? raw.weekStartDay
+        : DEFAULT_WEEK_START_DAY,
+    }
+  }
+
+  if (typeof raw.showCompleted === 'boolean') {
+    return {
+      completedFilter: raw.showCompleted ? DEFAULT_COMPLETED_FILTER : 'hidden',
+      weekStartDay: DEFAULT_WEEK_START_DAY,
+    }
+  }
+
+  return { ...DEFAULT_SETTINGS }
+}
+
 export function loadSettings() {
   try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) ?? { showCompleted: true }
+    return migrateSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY)))
   } catch {
-    return { showCompleted: true }
+    return { ...DEFAULT_SETTINGS }
   }
 }
 
