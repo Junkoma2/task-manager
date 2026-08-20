@@ -31,6 +31,7 @@ export function generateRecurringTasks(tasks, recurringTemplates, now = new Date
       id: crypto.randomUUID(),
       title: tmpl.title,
       completed: false,
+      completedAt: null,
       parentId: null,
       createdAt: Date.now(),
       dueDate: today,

@@ -10,6 +10,7 @@ import { generateRecurringTasks } from './recurring.js'
 import { getLocalDateISO } from './date.js'
 import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
 import { APP_VERSION } from './version.js'
+import { isTaskVisibleForCompletionFilter, WEEK_START_DAY_OPTIONS } from './completionFilter.js'
 
 function formatDueDate(dueDate) {
   const parts = dueDate.split('-')
@@ -204,6 +205,7 @@ export default function App() {
         id: crypto.randomUUID(),
         title,
         completed: false,
+        completedAt: null,
         parentId: null,
         createdAt: Date.now(),
         dueDate: startDate,
@@ -215,6 +217,7 @@ export default function App() {
         id: crypto.randomUUID(),
         title,
         completed: false,
+        completedAt: null,
         parentId: null,
         createdAt: Date.now(),
         dueDate: dueDate || null,
@@ -229,6 +232,7 @@ export default function App() {
       id: crypto.randomUUID(),
       title,
       completed: false,
+      completedAt: null,
       parentId,
       createdAt: Date.now(),
       dueDate: null,
@@ -238,7 +242,12 @@ export default function App() {
   }
 
   function toggleTask(id) {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
+    setTasks(tasks.map(t => {
+      if (t.id !== id) return t
+      const completed = !t.completed
+      // 完了時に完了日時を保存し、未完了へ戻した場合は解除する（表示期間フィルターの判定に使う）
+      return { ...t, completed, completedAt: completed ? Date.now() : null }
+    }))
   }
 
   function editTask(id, { title, dueDate }) {
@@ -335,7 +344,12 @@ export default function App() {
         const payload = JSON.parse(e.target.result)
         if (!Array.isArray(payload.tasks) || !payload.tasks.every(isValidTask)) throw new Error('invalid')
         const importedIds = new Set(payload.tasks.map(t => t.id))
-        const importedTasks = payload.tasks.map(t => ({ ...t, parentId: importedIds.has(t.parentId) ? t.parentId : null }))
+        const importedTasks = payload.tasks.map(t => ({
+          ...t,
+          parentId: importedIds.has(t.parentId) ? t.parentId : null,
+          // 完了日時を持たないエクスポートデータ（旧バージョン等）は null として扱う
+          completedAt: typeof t.completedAt === 'number' ? t.completedAt : null,
+        }))
         setConfirmModal({
           message: '現在のタスクを置き換えてインポートしますか？',
           onConfirm: () => {
@@ -368,7 +382,7 @@ export default function App() {
   }
 
   const sortedTopLevel = getSortedTopLevel()
-  const visibleTopLevel = settings.showCompleted ? sortedTopLevel : sortedTopLevel.filter(t => !t.completed)
+  const visibleTopLevel = sortedTopLevel.filter(t => isTaskVisibleForCompletionFilter(t, settings))
   const remaining = tasks.filter(t => !t.completed).length
   const hasCompleted = tasks.some(t => t.completed)
   const hasTasks = tasks.length > 0
@@ -378,10 +392,10 @@ export default function App() {
         text: 'タスクを追加してみましょう',
         sub: 'リスト末尾の＋ボタンから追加できます',
       }
-    : !hasVisibleTopLevel && !settings.showCompleted
+    : !hasVisibleTopLevel
       ? {
           text: '表示中のタスクはありません',
-          sub: '完了済みを表示すると確認できます',
+          sub: '設定の表示期間を変更すると確認できます',
         }
       : null
   const RECURRENCE_LABELS = { daily: '毎日', weekly: '毎週', monthly: '毎月' }
@@ -473,7 +487,7 @@ export default function App() {
                 onDelete={deleteTask}
                 onAddChild={addChildTask}
                 onMove={moveTask}
-                showCompleted={settings.showCompleted}
+                completedFilterSettings={settings}
               />
             ))}
             <AddTaskRow ref={addTaskRowRef} onAdd={addTask} />
@@ -680,7 +694,7 @@ const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
   )
 })
 
-function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove, showCompleted = true }) {
+function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove, completedFilterSettings }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDue, setEditDue] = useState(task.dueDate ?? '')
@@ -692,7 +706,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
   const childFieldRef = useRef(null)
 
   const children = tasks.filter(t => t.parentId === task.id)
-  const visibleChildren = showCompleted ? children : children.filter(c => !c.completed)
+  const visibleChildren = children.filter(c => isTaskVisibleForCompletionFilter(c, completedFilterSettings))
   const today = getLocalDateISO()
   const deleteConfirmId = 'delete-' + task.id
 
@@ -872,7 +886,7 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
               onDelete={onDelete}
               onAddChild={onAddChild}
               onMove={onMove}
-              showCompleted={showCompleted}
+              completedFilterSettings={completedFilterSettings}
             />
           ))}
         </ul>
@@ -907,15 +921,32 @@ function SettingsPanel({ settings, recurringTemplates, confirmingId, requestConf
         </div>
         <section className="settings-section">
           <h3 className="settings-section-title">表示</h3>
-          <label className="settings-toggle-row">
-            <span>完了済みタスクを表示</span>
-            <input
-              type="checkbox"
-              id="show-completed-toggle"
-              checked={settings.showCompleted}
-              onChange={e => onSettingsChange({ ...settings, showCompleted: e.target.checked })}
-            />
+          <label className="settings-toggle-row" htmlFor="completed-filter-select">
+            <span>完了済みタスクの表示期間</span>
+            <select
+              id="completed-filter-select"
+              value={settings.completedFilter}
+              onChange={e => onSettingsChange({ ...settings, completedFilter: e.target.value })}
+            >
+              <option value="week">今週の完了済みを表示</option>
+              <option value="today">今日の完了済みだけ表示</option>
+              <option value="hidden">完了済みをすべて非表示</option>
+            </select>
           </label>
+          {settings.completedFilter === 'week' && (
+            <label className="settings-toggle-row" htmlFor="week-start-day-select">
+              <span>週の開始曜日</span>
+              <select
+                id="week-start-day-select"
+                value={settings.weekStartDay}
+                onChange={e => onSettingsChange({ ...settings, weekStartDay: Number(e.target.value) })}
+              >
+                {WEEK_START_DAY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </section>
         <section className="settings-section">
           <h3 className="settings-section-title">繰り返しタスク</h3>
