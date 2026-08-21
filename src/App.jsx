@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import {
   loadTasks, saveTasks,
   loadSettings, saveSettings,
@@ -11,6 +11,7 @@ import { getLocalDateISO } from './date.js'
 import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
 import { APP_VERSION } from './version.js'
 import { isTaskVisibleForCompletionFilter, WEEK_START_DAY_OPTIONS } from './completionFilter.js'
+import { buildProgressReportText, getDefaultProgressRange } from './progressExport.js'
 
 function formatDueDate(dueDate) {
   const parts = dueDate.split('-')
@@ -111,6 +112,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [progressExportOpen, setProgressExportOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState(null) // { message, onConfirm }
   const statusTimerRef = useRef(null)
   const mainRef = useRef(null)
@@ -318,6 +320,7 @@ export default function App() {
     setTasks(next)
   }
 
+  // バックアップ／環境移行用のJSON全件エクスポート。進捗の共有には「進捗をテキスト出力」を使う
   function exportTasks() {
     const payload = { version: 1, exportedAt: new Date().toISOString(), tasks }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -327,7 +330,7 @@ export default function App() {
     link.download = 'task-manager-' + getLocalDateISO() + '.json'
     link.click()
     URL.revokeObjectURL(url)
-    showStatus('エクスポートしました')
+    showStatus('バックアップを保存しました')
   }
 
   function isValidTask(v) {
@@ -354,7 +357,7 @@ export default function App() {
           message: '現在のタスクを置き換えてインポートしますか？',
           onConfirm: () => {
             setTasks(importedTasks)
-            showStatus('インポートしました')
+            showStatus('バックアップを復元しました')
           },
         })
       } catch {
@@ -433,6 +436,7 @@ export default function App() {
                 onSettingsOpen={() => { setMenuOpen(false); setSettingsOpen(true) }}
                 onHelpOpen={() => { setMenuOpen(false); setHelpOpen(true) }}
                 onCheckUpdate={() => { setMenuOpen(false); checkForUpdate() }}
+                onProgressExportOpen={() => { setMenuOpen(false); setProgressExportOpen(true) }}
                 onExport={() => { setMenuOpen(false); exportTasks() }}
                 onImport={importTasksFromFile}
                 onCloseMenu={() => setMenuOpen(false)}
@@ -560,11 +564,18 @@ export default function App() {
         />
       )}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {progressExportOpen && (
+        <ProgressExportPanel
+          tasks={tasks}
+          onClose={() => setProgressExportOpen(false)}
+          showStatus={showStatus}
+        />
+      )}
     </>
   )
 }
 
-function MenuPopup({ onClose, onSettingsOpen, onHelpOpen, onCheckUpdate, onExport, onImport, onCloseMenu }) {
+function MenuPopup({ onClose, onSettingsOpen, onHelpOpen, onCheckUpdate, onProgressExportOpen, onExport, onImport, onCloseMenu }) {
   const importRef = useRef(null)
 
   useEffect(() => {
@@ -578,8 +589,9 @@ function MenuPopup({ onClose, onSettingsOpen, onHelpOpen, onCheckUpdate, onExpor
       <button className="menu-item" type="button" onClick={onHelpOpen}>使い方</button>
       <button className="menu-item" type="button" onClick={onSettingsOpen}>設定</button>
       <button className="menu-item" type="button" onClick={onCheckUpdate}>更新を確認</button>
-      <button className="menu-item" type="button" onClick={onExport}>エクスポート</button>
-      <button className="menu-item" type="button" onClick={() => importRef.current?.click()}>インポート</button>
+      <button className="menu-item" type="button" onClick={onProgressExportOpen}>進捗をテキスト出力</button>
+      <button className="menu-item" type="button" onClick={onExport}>バックアップを保存（JSON）</button>
+      <button className="menu-item" type="button" onClick={() => importRef.current?.click()}>バックアップを復元（JSON）</button>
       <input
         ref={importRef}
         className="sr-only"
@@ -1019,6 +1031,122 @@ function SettingsPanel({ settings, recurringTemplates, confirmingId, requestConf
           </ul>
         </section>
         <p className="settings-version">バージョン {APP_VERSION}</p>
+      </div>
+    </div>
+  )
+}
+
+function ProgressExportPanel({ tasks, onClose, showStatus }) {
+  const overlayRef = useRef(null)
+  const defaultRange = useMemo(() => getDefaultProgressRange(), [])
+  const [startDate, setStartDate] = useState(defaultRange.startDate)
+  const [endDate, setEndDate] = useState(defaultRange.endDate)
+  const [includeNoDueDate, setIncludeNoDueDate] = useState(false)
+
+  useEffect(() => { overlayRef.current?.focus() }, [])
+
+  const rangeInvalid = Boolean(startDate) && Boolean(endDate) && startDate > endDate
+  const previewText = rangeInvalid
+    ? ''
+    : buildProgressReportText(tasks, { startDate, endDate, includeNoDueDate })
+  const hasResult = previewText.length > 0
+
+  async function handleCopy() {
+    if (!hasResult) return
+    try {
+      await navigator.clipboard.writeText(previewText)
+      showStatus('コピーしました')
+    } catch {
+      showStatus('コピーできませんでした。プレビューを選択してコピーしてください')
+    }
+  }
+
+  function handleSaveTxt() {
+    if (!hasResult) return
+    const blob = new Blob([previewText], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `task-manager-progress-${startDate}_${endDate}.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+    showStatus('テキストを保存しました')
+  }
+
+  return (
+    <div
+      ref={overlayRef}
+      id="progress-export-overlay"
+      className="settings-overlay"
+      aria-modal="true"
+      role="dialog"
+      aria-label="進捗をテキスト出力"
+      tabIndex={-1}
+      onClick={e => { if (e.target === overlayRef.current) onClose() }}
+      onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+    >
+      <div className="settings-panel">
+        <div className="settings-header">
+          <h2 className="settings-title">進捗をテキスト出力</h2>
+          <button className="icon-button" type="button" aria-label="進捗をテキスト出力を閉じる" onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <section className="settings-section">
+          <p className="settings-desc">
+            指定した期間に完了したタスクと、期限切れを含む未完了タスクをプレーンテキストで出力します。メールなどへそのまま貼り付けられます。
+          </p>
+          <div className="progress-export-range">
+            <label className="progress-export-field" htmlFor="progress-export-start">
+              <span>開始日</span>
+              <input
+                id="progress-export-start"
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+              />
+            </label>
+            <label className="progress-export-field" htmlFor="progress-export-end">
+              <span>終了日</span>
+              <input
+                id="progress-export-end"
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+              />
+            </label>
+          </div>
+          {rangeInvalid && (
+            <p className="progress-export-error" role="alert">開始日は終了日以前を指定してください</p>
+          )}
+          <label className="settings-toggle-row" htmlFor="progress-export-no-due">
+            <span>期限なしの未完了タスクを含める</span>
+            <input
+              id="progress-export-no-due"
+              type="checkbox"
+              checked={includeNoDueDate}
+              onChange={e => setIncludeNoDueDate(e.target.checked)}
+            />
+          </label>
+        </section>
+        <section className="settings-section">
+          <h3 className="settings-section-title">プレビュー</h3>
+          {hasResult ? (
+            <pre className="progress-export-preview" aria-label="進捗テキストのプレビュー">{previewText}</pre>
+          ) : (
+            <p className="progress-export-empty">
+              {rangeInvalid ? '期間を見直してください' : '対象のタスクがありません'}
+            </p>
+          )}
+          <div className="progress-export-actions">
+            <button type="button" className="menu-item" onClick={handleCopy} disabled={!hasResult}>
+              コピー
+            </button>
+            <button type="button" className="menu-item" onClick={handleSaveTxt} disabled={!hasResult}>
+              .txtで保存
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   )
