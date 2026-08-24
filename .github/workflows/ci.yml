@@ -18,3 +18,30 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  # docs/ は GitHub Pages が配信するビルド成果物のコミット。src/ 等ソースを
+  # 変更したPR/pushで docs/ の再ビルドを忘れると、公開ページだけ古いまま
+  # 取り残される（過去に実際に発生した事故の再発防止）。
+  # ここでは docs/ を上書きする npm run build を再実行し、コミット済みの
+  # docs/index.html・docs/assets/ と生成結果に差分が無いかを検証する。
+  # design.html・product-principles.md・icon.svg・manifest.webmanifest・sw.js
+  # などビルド対象外の手動管理ファイルは対象に含めない。
+  docs-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: docs/ の再ビルド漏れを検証
+        run: |
+          if [ -n "$(git status --porcelain -- docs/index.html docs/assets)" ]; then
+            echo "::error::docs/ がソースの最新状態と一致していません。src/ を変更したコミットには 'npm run build' で再生成した docs/ を含めてください。"
+            git status --porcelain -- docs/index.html docs/assets
+            git diff -- docs/index.html docs/assets
+            exit 1
+          fi
+          echo "docs/index.html と docs/assets/ はビルド結果と一致しています。"
