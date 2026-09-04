@@ -202,13 +202,36 @@ h1 {
 .task-title-area {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   min-width: 0;
 }
 
+/* タスク名は常時<input>。未フォーカス時はテキストに見えるよう枠線・背景を消し、
+   クリックまたはフォーカスでそのまま書き換えられるようにする */
 .task-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
   line-height: 1.5;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  text-overflow: ellipsis;
+}
+
+.task-title:hover {
+  background: #f8f9fb;
+}
+
+.task-title:focus {
+  outline: none;
+  background: #fff;
+  border-color: #94a3b8;
 }
 
 .subtask-badge {
@@ -350,15 +373,6 @@ h1 {
   opacity: 0.45;
 }
 
-.task-edit-input {
-  width: 100%;
-  min-width: 0;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-
 .task-children {
   list-style: none;
   margin: 0 0 0 28px;
@@ -366,29 +380,53 @@ h1 {
   border-left: 1px solid #e2e8f0;
 }
 
-.child-task-form {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  padding: 0 16px 10px 46px;
+/* task-rowと子タスク追加欄をまとめてホバー判定するラッパー。子孫のtask-item（さらに
+   下の階層）までホバー状態を伝播させないよう、task-childrenはこの外側に置く */
+.task-body {
+  position: relative;
 }
 
-.child-task-form input {
+/* 子タスク追加欄はマウント状態を維持し、PCではホバー/フォーカスで、
+   タッチ環境では下のメディアクエリで淡く常時表示して低クリックで追加できるようにする */
+.child-add-row {
+  padding: 0 16px 8px 46px;
+}
+
+.child-add-input {
   width: 100%;
+  min-width: 0;
   height: 36px;
-  padding: 0 12px;
-  border: 1px solid #d6dae1;
+  padding: 0 10px;
+  border: 1px dashed #cbd5e1;
   border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
-.child-task-form button {
-  border: 0;
-  border-radius: 8px;
-  background: #eef1f5;
-  color: #334155;
-  padding: 0 14px;
-  min-height: 36px;
-  cursor: pointer;
+.child-add-input::placeholder {
+  color: #94a3b8;
+}
+
+.task-body:hover .child-add-input,
+.task-body:focus-within .child-add-input {
+  opacity: 1;
+}
+
+.child-add-input:focus {
+  outline: none;
+  opacity: 1;
+  background: #fff;
+  border-style: solid;
+  border-color: #94a3b8;
+}
+
+@media (hover: none) {
+  .child-add-input {
+    opacity: 0.55;
+  }
 }
 
 .task-add-row {
@@ -552,10 +590,6 @@ h1 {
 
   .task-actions {
     gap: 0;
-  }
-
-  .child-task-form {
-    padding-left: 46px;
   }
 
   .task-add-date {

@@ -8,7 +8,7 @@ import {
 } from './storage.js'
 import { generateRecurringTasks } from './recurring.js'
 import { getLocalDateISO } from './date.js'
-import { EditIcon, DeleteIcon, AddChildIcon, DragIcon, CloseIcon } from './icons.jsx'
+import { DeleteIcon, DragIcon, CloseIcon } from './icons.jsx'
 import { APP_VERSION } from './version.js'
 import { isTaskVisibleForCompletionFilter, WEEK_START_DAY_OPTIONS } from './completionFilter.js'
 import { buildProgressReportText, getDefaultProgressRange } from './progressExport.js'
@@ -610,6 +610,7 @@ const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
   const [recurrence, setRecurrence] = useState('none')
   const fieldRef = useRef(null)
   const formRef = useRef(null)
+  const hoverTimerRef = useRef(null)
 
   function open() {
     setIsOpen(true)
@@ -617,6 +618,20 @@ const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
   }
 
   useImperativeHandle(ref, () => ({ open }))
+
+  useEffect(() => () => clearTimeout(hoverTimerRef.current), [])
+
+  // PCではカーソルを合わせるだけ（クリックなし）で入力欄を開く。タッチ環境はpointerType!=='mouse'のため発火せず、
+  // タップでの従来どおりのクリック導線が低クリック手段として残る
+  function handlePointerEnter(e) {
+    if (e.pointerType !== 'mouse' || isOpen) return
+    clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = setTimeout(open, 350)
+  }
+
+  function handlePointerLeave() {
+    clearTimeout(hoverTimerRef.current)
+  }
 
   function commit() {
     if (title.trim()) onAdd({ title: title.trim(), dueDate, recurrence })
@@ -647,6 +662,9 @@ const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
         tabIndex={0}
         aria-label="タスクを追加"
         onClick={open}
+        onFocus={open}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}
       >
         + タスクを追加
@@ -706,19 +724,61 @@ const AddTaskRow = forwardRef(function AddTaskRow({ onAdd }, ref) {
   )
 })
 
+// タスクの下に常時マウントする子タスク追加欄。PCではホバー（.task-body:hover）で、
+// タッチ環境ではCSS側の@media (hover: none)で淡く常時表示し、クリックなし〜低クリックで追加できる
+function ChildAddRow({ parentTitle, onAdd }) {
+  const [value, setValue] = useState('')
+  const inputRef = useRef(null)
+  const composingRef = useRef(false)
+  const skipCommitRef = useRef(false)
+
+  function commit() {
+    if (skipCommitRef.current) { skipCommitRef.current = false; setValue(''); return }
+    const trimmed = value.trim()
+    if (trimmed) onAdd(trimmed)
+    setValue('')
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      maxLength={80}
+      className="child-add-input"
+      placeholder="+ 子タスクを追加"
+      aria-label={parentTitle + 'の子タスクを追加'}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onBlur={commit}
+      onCompositionStart={() => { composingRef.current = true }}
+      onCompositionEnd={() => { composingRef.current = false }}
+      onKeyDown={e => {
+        if (e.key === 'Escape') {
+          skipCommitRef.current = true
+          setValue('')
+          inputRef.current?.blur()
+          return
+        }
+        if (e.key === 'Enter') {
+          // IME変換確定のEnterで誤登録しないよう、変換中は無視する
+          if (composingRef.current || e.nativeEvent.isComposing || e.keyCode === 229) return
+          e.preventDefault()
+          commit()
+          // 連続で子タスクを追加しやすいようフォーカスを維持する
+          inputRef.current?.focus()
+        }
+      }}
+    />
+  )
+}
+
 function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggle, onEdit, onDelete, onAddChild, onMove, completedFilterSettings }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDue, setEditDue] = useState(task.dueDate ?? '')
-  const [showChildForm, setShowChildForm] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [childTitle, setChildTitle] = useState('')
   const editFieldRef = useRef(null)
   const editRowRef = useRef(null)
-  const childFieldRef = useRef(null)
-  const childFormRef = useRef(null)
-  const childToggleRef = useRef(null)
-  const childComposingRef = useRef(false)
 
   const children = tasks.filter(t => t.parentId === task.id)
   const visibleChildren = children.filter(c => isTaskVisibleForCompletionFilter(c, completedFilterSettings))
@@ -729,13 +789,20 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
     setEditTitle(task.title)
     setEditDue(task.dueDate ?? '')
     setIsEditing(true)
-    setTimeout(() => { editFieldRef.current?.focus(); editFieldRef.current?.select() }, 0)
   }
 
   function commitEdit() {
     const nextTitle = editTitle.trim()
     if (nextTitle) onEdit(task.id, { title: nextTitle, dueDate: editDue })
+    else setEditTitle(task.title)
     setIsEditing(false)
+  }
+
+  function cancelEdit() {
+    setEditTitle(task.title)
+    setEditDue(task.dueDate ?? '')
+    setIsEditing(false)
+    editFieldRef.current?.blur()
   }
 
   function handleEditBlur(e) {
@@ -746,37 +813,6 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
       // iOS Safari では relatedTarget が null になるため遅延チェック
       setTimeout(() => {
         if (!editRowRef.current?.contains(document.activeElement)) commitEdit()
-      }, 0)
-    }
-  }
-
-  function commitChild() {
-    const trimmed = childTitle.trim()
-    if (trimmed) onAddChild(task.id, trimmed)
-    setChildTitle('')
-    setShowChildForm(false)
-  }
-
-  function cancelChild() {
-    setChildTitle('')
-    setShowChildForm(false)
-  }
-
-  // 子タスク追加アイコンの再クリック時、blurの自動確定とアイコン側のトグル処理が
-  // 二重に発火して重複登録・意図しない再オープンを起こさないよう、フォームと
-  // トグルアイコンの両方をまとめて「フォーム内」とみなす
-  function isInsideChildArea(el) {
-    return !!el && (childFormRef.current?.contains(el) || childToggleRef.current?.contains(el))
-  }
-
-  function handleChildBlur(e) {
-    if (e.relatedTarget) {
-      if (isInsideChildArea(e.relatedTarget)) return
-      commitChild()
-    } else {
-      // iOS Safari では relatedTarget が null になるため遅延チェック
-      setTimeout(() => {
-        if (!isInsideChildArea(document.activeElement)) commitChild()
       }, 0)
     }
   }
@@ -804,129 +840,78 @@ function TaskItem({ task, tasks, sortMode, confirmingId, requestConfirm, onToggl
       onDragLeave={isSortable ? () => setIsDragOver(false) : undefined}
       onDrop={isSortable ? handleDrop : undefined}
     >
-      <div ref={editRowRef} className={'task-row' + (sortMode === 'manual' ? ' task-row--sortable' : '')}>
-        {sortMode === 'manual' && (
-          <span className="drag-handle" aria-label="並び替え" title="並び替え">
-            <DragIcon />
-          </span>
-        )}
-        <input
-          type="checkbox"
-          checked={task.completed}
-          aria-label={task.title + 'を完了'}
-          onChange={() => onToggle(task.id)}
-        />
-        {isEditing ? (
-          <>
+      <div className="task-body">
+        <div ref={editRowRef} className={'task-row' + (sortMode === 'manual' ? ' task-row--sortable' : '')}>
+          {sortMode === 'manual' && (
+            <span className="drag-handle" aria-label="並び替え" title="並び替え">
+              <DragIcon />
+            </span>
+          )}
+          <input
+            type="checkbox"
+            checked={task.completed}
+            aria-label={task.title + 'を完了'}
+            onChange={() => onToggle(task.id)}
+          />
+          <div className="task-title-area">
             <input
               ref={editFieldRef}
-              className="task-edit-input"
+              className="task-title"
               type="text"
               maxLength={80}
-              value={editTitle}
-              aria-label="タスク名を編集"
+              value={isEditing ? editTitle : task.title}
+              aria-label={task.title + 'を編集'}
+              onFocus={startEdit}
               onChange={e => setEditTitle(e.target.value)}
               onBlur={handleEditBlur}
               onKeyDown={e => {
-                if (e.key === 'Enter') commitEdit()
-                if (e.key === 'Escape') setIsEditing(false)
+                if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+                if (e.key === 'Escape') cancelEdit()
               }}
             />
-            <input
-              type="date"
-              className="task-add-date"
-              aria-label="期限日を編集"
-              value={editDue}
-              onChange={e => setEditDue(e.target.value)}
-              onBlur={handleEditBlur}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitEdit()
-                if (e.key === 'Escape') setIsEditing(false)
-              }}
-            />
-          </>
-        ) : (
-          <div className="task-title-area">
-            <span className="task-title">
-              {task.title}
-              {hasChildren && completedChildren < children.length && (
-                <span className="subtask-badge">{completedChildren}/{children.length}</span>
-              )}
-            </span>
-            {task.dueDate && (
-              <span className={'task-due' + (task.dueDate < today ? ' overdue' : '')}>
-                {formatDueDate(task.dueDate)}
-              </span>
+            {hasChildren && completedChildren < children.length && (
+              <span className="subtask-badge">{completedChildren}/{children.length}</span>
             )}
-            {task.generatedFrom && (
-              <span className="recurring-badge" aria-label="繰り返しタスク" title="繰り返しで自動生成されたタスク">↻</span>
+            {isEditing ? (
+              <input
+                type="date"
+                className="task-add-date"
+                aria-label="期限日を編集"
+                value={editDue}
+                onChange={e => setEditDue(e.target.value)}
+                onBlur={handleEditBlur}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+                  if (e.key === 'Escape') cancelEdit()
+                }}
+              />
+            ) : (
+              <>
+                {task.dueDate && (
+                  <span className={'task-due' + (task.dueDate < today ? ' overdue' : '')}>
+                    {formatDueDate(task.dueDate)}
+                  </span>
+                )}
+                {task.generatedFrom && (
+                  <span className="recurring-badge" aria-label="繰り返しタスク" title="繰り返しで自動生成されたタスク">↻</span>
+                )}
+              </>
             )}
           </div>
-        )}
-        <div className="task-actions">
-          <button
-            ref={childToggleRef}
-            className="icon-button add-child-button"
-            type="button"
-            aria-label={task.title + 'に子タスクを追加'}
-            title="子タスクを追加"
-            onClick={() => {
-              if (showChildForm) {
-                commitChild()
-              } else {
-                setShowChildForm(true)
-                setTimeout(() => childFieldRef.current?.focus(), 0)
-              }
-            }}
-          >
-            <AddChildIcon />
-          </button>
-          <button
-            className="icon-button edit-button"
-            type="button"
-            aria-label={task.title + 'を編集'}
-            title="編集"
-            onClick={startEdit}
-          >
-            <EditIcon />
-          </button>
-          <button
-            className={'icon-button delete-button' + (confirmingId === deleteConfirmId ? ' is-confirming' : '')}
-            type="button"
-            aria-label={confirmingId === deleteConfirmId ? confirmLabel : task.title + 'を削除'}
-            title="削除"
-            onClick={() => requestConfirm(deleteConfirmId, () => onDelete(task.id))}
-          >
-            <DeleteIcon />
-          </button>
+          <div className="task-actions">
+            <button
+              className={'icon-button delete-button' + (confirmingId === deleteConfirmId ? ' is-confirming' : '')}
+              type="button"
+              aria-label={confirmingId === deleteConfirmId ? confirmLabel : task.title + 'を削除'}
+              title="削除"
+              onClick={() => requestConfirm(deleteConfirmId, () => onDelete(task.id))}
+            >
+              <DeleteIcon />
+            </button>
+          </div>
         </div>
+        <ChildAddRow parentTitle={task.title} onAdd={title => onAddChild(task.id, title)} />
       </div>
-      {showChildForm && (
-        <div className="child-task-form" ref={childFormRef}>
-          <input
-            ref={childFieldRef}
-            type="text"
-            maxLength={80}
-            placeholder="子タスクを追加"
-            aria-label={task.title + 'の子タスクを追加'}
-            value={childTitle}
-            onChange={e => setChildTitle(e.target.value)}
-            onBlur={handleChildBlur}
-            onCompositionStart={() => { childComposingRef.current = true }}
-            onCompositionEnd={() => { childComposingRef.current = false }}
-            onKeyDown={e => {
-              if (e.key === 'Escape') { cancelChild(); return }
-              if (e.key === 'Enter') {
-                // IME変換確定のEnterで誤登録しないよう、変換中は無視する
-                if (childComposingRef.current || e.nativeEvent.isComposing || e.keyCode === 229) return
-                e.preventDefault()
-                commitChild()
-              }
-            }}
-          />
-          <button type="button" onClick={cancelChild}>キャンセル</button>
-        </div>
-      )}
       {hasChildren && (
         <ul className="task-children">
           {visibleChildren.map(child => (
@@ -1184,7 +1169,7 @@ const HELP_SECTIONS = [
   },
   {
     title: '子タスクに分解する',
-    body: 'タスクの操作ボタンから子タスクを追加すると、作業を小さいステップに分けて進められます。子タスクは親タスクの下にまとまって表示されます。',
+    body: 'タスクの下にカーソルを合わせる（タッチ環境ではタップする）と子タスクの入力欄が現れ、そのまま入力して追加できます。作業を小さいステップに分けて進められ、子タスクは親タスクの下にまとまって表示されます。',
   },
   {
     title: '繰り返しタスク',
